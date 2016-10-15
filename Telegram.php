@@ -40,6 +40,9 @@ public $link = "";
             return $this->sendAPIRequest($url, array(), false);
         }
     }
+    public function sendContact(array $content) {
+        return $this->endpoint("sendContact", $content);
+    }
     public function sendPhoto(array $content) {
         return $this->endpoint("sendPhoto", $content);
     }
@@ -60,6 +63,9 @@ public $link = "";
     }
     public function sendLocation(array $content) {
         return $this->endpoint("sendLocation", $content);
+    }
+    public function sendVenue(array $content) {
+        return $this->endpoint("sendVenue", $content);
     }
     public function sendChatAction(array $content) {
         return $this->endpoint("sendChatAction", $content);
@@ -230,5 +236,14 @@ if (!function_exists('curl_file_create')) {
                 . ($postname ? : basename($filename))
                 . ($mimetype ? ";type=$mimetype" : '');
     }
+
+
+}
+
+function mylog($text){
+	$today        = date("Y-m-d H:i:s");
+	$log = "[$today] $text \n";
+	file_put_contents('/tmp/log_'.date("j.n.Y").'.txt', $log, FILE_APPEND);
+      
 }
 ?>
