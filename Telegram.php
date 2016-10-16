@@ -1,85 +1,100 @@
 <?php
+
 /**
  * Telegram Bot Class.
  * based on first version by @author Gabriele Grillo <gabry.grillo@alice.it>
  *
  */
-
 include('settings_t.php');
 
-
 class Telegram {
-	private $bot_id = TELEGRAM_BOT;
-	private $data = array();
-	private $updates = array();
-	public $inited = false;
-public $link = "";
- public function __construct($bot_id) {
+
+    private $bot_id = TELEGRAM_BOT;
+    private $data = array();
+    private $updates = array();
+    public $inited = false;
+    public $link = "";
+
+    public function __construct($bot_id) {
         $this->bot_id = $bot_id;
         $this->data = $this->getData();
     }
+
     public function init() {
-    	if ($this->inited) {
-      	return true;
-    	}
+        if ($this->inited) {
+            return true;
+        }
     }
+
     public function getMe() {
         return $this->endpoint("getMe", array(), false);
     }
+
     public function sendMessage(array $content) {
         return $this->endpoint("sendMessage", $content);
     }
+
     public function endpoint($api, array $content, $post = true) {
         $url = 'https://api.telegram.org/bot' . $this->bot_id . '/' . $api;
-        if ($post)
-        {
+        if ($post) {
             return $this->sendAPIRequest($url, $content);
-        }
-        else
-        {
+        } else {
             return $this->sendAPIRequest($url, array(), false);
         }
     }
+
     public function sendContact(array $content) {
         return $this->endpoint("sendContact", $content);
     }
+
     public function sendPhoto(array $content) {
         return $this->endpoint("sendPhoto", $content);
     }
+
     public function sendAudio(array $content) {
         return $this->endpoint("sendAudio", $content);
     }
+
     public function sendDocument(array $content) {
         return $this->endpoint("sendDocument", $content);
     }
+
     public function sendSticker(array $content) {
         return $this->endpoint("sendSticker", $content);
     }
+
     public function sendVideo(array $content) {
         return $this->endpoint("sendVideo", $content);
     }
+
     public function sendVoice(array $content) {
         return $this->endpoint("sendVoice", $content);
     }
+
     public function sendLocation(array $content) {
         return $this->endpoint("sendLocation", $content);
     }
+
     public function sendVenue(array $content) {
         return $this->endpoint("sendVenue", $content);
     }
+
     public function sendChatAction(array $content) {
         return $this->endpoint("sendChatAction", $content);
     }
+
     public function setWebhook($url) {
 
         $content = array('url' => $url);
         return $this->endpoint("setWebhook", $content);
     }
-	public function removeWebhook() {
-    	//$this->init();
-    	$content = array('url' => '');
-    	return $this->endpoint('setWebhook', $content);
-  	}
+
+    public function removeWebhook() {
+        //$this->init();
+        $content = array('url' => '');
+        return $this->endpoint('setWebhook', $content);
+    }
+
     public function getData() {
         if (empty($this->data)) {
             $rawData = file_get_contents("php://input");
@@ -88,47 +103,61 @@ public $link = "";
             return $this->data;
         }
     }
+
     public function setData(array $data) {
-        $this->data = data;
+        $this->data = $data;
     }
+
     public function Text() {
         return $this->data["message"]["text"];
     }
+
     public function ChatID() {
         return $this->data["message"]["chat"]["id"];
     }
+
     public function Date() {
         return $this->data["message"]["date"];
     }
+
     public function FirstName() {
         return $this->data["message"]["from"]["first_name"];
     }
+
     public function LastName() {
         return $this->data["message"]["from"]["last_name"];
     }
+
     public function Username() {
         return $this->data["message"]["from"]["username"];
     }
-    public function User_id(){
-    	return $this->data["message"]["from"]["id"];
+
+    public function User_id() {
+        return $this->data["message"]["from"]["id"];
     }
+
     public function Location() {
         return $this->data["message"]["location"];
     }
+
     public function UpdateID() {
         return $this->data["update_id"];
     }
+
     public function UpdateCount() {
         return count($this->updates["result"]);
     }
-	public function ReplyToMessage() {
+
+    public function ReplyToMessage() {
 
         return $this->data["message"]["reply_to_message"];
     }
+
     public function MessageId() {
 
         return $this->data["message"]["message_id"];
     }
+
     public function messageFromGroup() {
         if ($this->data["message"]["chat"]["title"] == "") {
             return false;
@@ -137,37 +166,35 @@ public $link = "";
     }
 
     //gestisce un invio in broadcast a tutti gli utenti registrati in un database
-    public function sendMessageAll($type, $user, $content)
-    {
-		$apiendpoint = ucfirst($type);
-		if ($type == 'photo' || $type == "audio" || $type == "video" || $type == "document") {
-			$mimetype = mime_content_type($content);
-			$content = new CurlFile($content, $mimetype);
-				$link = $this->data["message"]["photo"]["file_path"];
-
-		} elseif ($type == "message") {
-			$type = 'text';
-		}
-		print_r($user);
-		$ch = curl_init("https://api.telegram.org/bot".$this->bot_id."/send".$apiendpoint);
-		curl_setopt_array($ch, array(
-			CURLOPT_RETURNTRANSFER => true,
-			CURLOPT_POST => true,
-			CURLOPT_HEADER => false,
-			CURLOPT_HTTPHEADER => array(
-				'Host: api.telegram.org',
-				'Content-Type: multipart/form-data'
-			),
-			CURLOPT_POSTFIELDS => array(
-				'chat_id' => $user,
-				$type => $content
-			),
-			CURLOPT_TIMEOUT => 0,
-			CURLOPT_CONNECTTIMEOUT => 6000,
-			CURLOPT_SSL_VERIFYPEER => false
-		));
-		curl_exec($ch);
-		curl_close($ch);
+    public function sendMessageAll($type, $user, $content) {
+        $apiendpoint = ucfirst($type);
+        if ($type == 'photo' || $type == "audio" || $type == "video" || $type == "document") {
+            $mimetype = mime_content_type($content);
+            $content = new CurlFile($content, $mimetype);
+            $link = $this->data["message"]["photo"]["file_path"];
+        } elseif ($type == "message") {
+            $type = 'text';
+        }
+        print_r($user);
+        $ch = curl_init("https://api.telegram.org/bot" . $this->bot_id . "/send" . $apiendpoint);
+        curl_setopt_array($ch, array(
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_HEADER => false,
+            CURLOPT_HTTPHEADER => array(
+                'Host: api.telegram.org',
+                'Content-Type: multipart/form-data'
+            ),
+            CURLOPT_POSTFIELDS => array(
+                'chat_id' => $user,
+                $type => $content
+            ),
+            CURLOPT_TIMEOUT => 0,
+            CURLOPT_CONNECTTIMEOUT => 6000,
+            CURLOPT_SSL_VERIFYPEER => false
+        ));
+        curl_exec($ch);
+        curl_close($ch);
     }
 
     //costruisce la tastiera del servizio
@@ -182,7 +209,7 @@ public $link = "";
         return $encodedMarkup;
     }
 
-	 public function buildKeyBoardHide($selective = true) {
+    public function buildKeyBoardHide($selective = true) {
         $replyMarkup = array(
             'hide_keyboard' => true,
             'selective' => $selective
@@ -190,6 +217,24 @@ public $link = "";
         $encodedMarkup = json_encode($replyMarkup, true);
         return $encodedMarkup;
     }
+
+     /// Create a KeyboardButton
+    /** This object represents one button of an inline keyboard. You must use exactly one of the optional fields.
+     * \param $text String; Array of button rows, each represented by an Array of Strings
+     * \param $request_contact Boolean Optional. If True, the user's phone number will be sent as a contact when the button is pressed. Available in private chats only
+     * \param $request_location Boolean Optional. If True, the user's current location will be sent when the button is pressed. Available in private chats only
+     * \return the requested button as Array
+     */
+    public function buildKeyboardButton($text, $request_contact = false, $request_location = false) {
+        $replyMarkup = array(
+            'text' => $text,
+            'request_contact' => $request_contact,
+            'request_location' => $request_location
+        );
+      
+        return $replyMarkup;
+    }
+
     public function buildForceReply($selective = true) {
         $replyMarkup = array(
             'force_reply' => true,
@@ -210,6 +255,7 @@ public $link = "";
         }
         return $this->updates;
     }
+
     public function serveUpdate($update) {
         $this->data = $this->updates["result"][$update];
     }
@@ -228,22 +274,18 @@ public $link = "";
         curl_close($ch);
         return $result;
     }
+
 }
+
 // Helper for Uploading file using CURL
 if (!function_exists('curl_file_create')) {
+
     function curl_file_create($filename, $mimetype = '', $postname = '') {
         return "@$filename;filename="
                 . ($postname ? : basename($filename))
                 . ($mimetype ? ";type=$mimetype" : '');
     }
 
-
 }
 
-function mylog($text){
-	$today        = date("Y-m-d H:i:s");
-	$log = "[$today] $text \n";
-	file_put_contents('/tmp/log_'.date("j.n.Y").'.txt', $log, FILE_APPEND);
-      
-}
 ?>
