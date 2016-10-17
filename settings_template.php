@@ -10,4 +10,20 @@ define('GDRIVEGID2', ''); // gid dell'eventuale altro foglio di calcolo per esem
 define('GDRIVEGID3', ''); // gid dell'eventuale altro foglio di calcolo per esempio sedi azienda/sindacato
 define('NAME', ''); // nome del Bot che appare nelle Informazioni /start
 define('FOLDERLOG', ''); // define the folder log for all logs
+
+// Define the database fields for gdrive
+define('ID', 'A');
+define('update', 'B');
+define('Key', 'C');
+define('Name', 'D');
+define('Email', 'E');
+define('Phone', 'F');
+define('Mobile1', 'G');
+define('Mobile2', 'H');
+define('Address', 'I');
+define('Description', 'J');
+define('web', 'K');
+define('lat', 'L');
+define('lng', 'M');
+define('profession', 'N');
 ?>

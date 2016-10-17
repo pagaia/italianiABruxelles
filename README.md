@@ -4,7 +4,7 @@ Use:
 Cliccando FAQ hai l'elenco delle domande più frequenti. Basta poi digitare il numero corrisponende alla domanda per la risposta corrispondente. Infine puoi fare una ricerca per parola chiave anteponendo il carattere ? tipo ?Ferie.
 Disabilitato: Invia la tua posizione o digita la città per avere la sede più vicina. 
 
-Lic. MIT @piersoft
+Lic. MIT @pagaia
 
 
 Config:
