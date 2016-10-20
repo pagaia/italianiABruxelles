@@ -1,35 +1,41 @@
 <?php
 
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+/**
+ * This function log the data into a file defined into the settings_t.php
+ * @param text $text The informationt log
+ * @param integer $level Define the level of debug
+ * 1=ERROR
+ * 2=WARN
+ * 3=INFO
+ * 4=DEBUG
+ * DEFAULT=INFO
  */
-
-function mylog($text, $level = 3) {
+function mylog($text, $level = LOGINFO) {
     $today = date("Y-m-d H:i:s");
     $log = "[$today] ";
 
-    switch ($level) {
-        case 1:
-            $log .= "[ERROR] ";
-            break;
-        case 2:
-            $log .= "[WARN] ";
-            break;
-        case 3:
-            $log .= "[INFO] ";
-            break;
-        case 4:
-            $log .= "[DEBUG] ";
-            break;
-        default:
-            $log .= "[INFO] ";
-            break;
-    }
+    if ($level <= LOGLEVEL) {
+        switch ($level) {
+            case LOGERROR:
+                $log .= "[ERROR] ";
+                break;
+            case LOGWARN:
+                $log .= "[WARN] ";
+                break;
+            case LOGINFO:
+                $log .= "[INFO] ";
+                break;
+            case LOGDEBUG:
+                $log .= "[DEBUG] ";
+                break;
+            default:
+                $log .= "[INFO] ";
+                break;
+        }
 
-    $log .= "$text \n";
-    file_put_contents(FOLDERLOG . '/italianiAbruxelles_' . date("j.n.Y") . '.log', $log, FILE_APPEND);
+        $log .= "$text \n";
+        file_put_contents(FOLDERLOG . '/italianiAbruxelles_' . date("j.n.Y") . '.log', $log, FILE_APPEND);
+    }
 }
 
 function convertGjsonDateToString($gdate) {
@@ -38,13 +44,10 @@ function convertGjsonDateToString($gdate) {
     return $matches[1] . "/" . $matches[2] . "/" . $matches[3] . " " . $matches[4] . ":" . $matches[5] . ":" . $matches[6];
 }
 
-function parseGjson(
-$data) {
+function parseGjson($data) {
 
     $data = substr($data, strpos($data, "{"));
     $data = substr($data, 0, -2);
-
-
     $contentArr = json_decode($data, true);
 
     $columns = array();
@@ -54,20 +57,20 @@ $data) {
 
     $column_length = count($contentArr['table']['cols']);
     if ($column_length == 0 || count($contentArr['table']['rows']) == 0) {
-        mylog(print_r("Column lenght 0 o rows 0 ", TRUE));
+        mylog("Column lenght 0 or rows 0 ", LOGDEBUG);
         throw new Exception('Impossible to parse the json');
     }
 
-    mylog("Foreach columns");
+    mylog("Foreach columns", LOGDEBUG);
     foreach ($contentArr['table']['cols'] as $columnidx) {
         array_push($columns, $columnidx['label']);
-        mylog(print_r($columnidx, TRUE));
+        mylog(print_r($columnidx, TRUE), LOGDEBUG);
     }
 
-    mylog(print_r($columns, TRUE));
+    mylog(print_r($columns, TRUE), LOGDEBUG);
 
     $countR = 0;
-    mylog("Foreach rows");
+    mylog("Foreach rows", LOGDEBUG);
     foreach ($contentArr['table']['rows'] as $rowsidx) {
         $row_length = count($rowsidx['c']);
         if ($column_length != $row_length) {
@@ -77,28 +80,27 @@ $data) {
         }
 
         $count = 0;
-        mylog("Foreach row");
+        mylog("Foreach row", LOGDEBUG);
 
         foreach ($rowsidx['c'] as $rowidx) {
-            mylog(print_r($rowidx, TRUE));
-            mylog("CountR: " . $countR);
+            mylog(print_r($rowidx, TRUE), LOGDEBUG);
+            mylog("CountR: " . $countR, LOGDEBUG);
 
             if (!isset($result[$countR])) {
                 $result[$countR] = array();
             }
-            mylog(print_r($result, TRUE));
+            mylog(print_r($result, TRUE), LOGDEBUG);
 
             $value = ($rowidx['v']) ? $rowidx['v'] : null;
             $result[$countR][$columns[$count]] = $value;
-            mylog("value: $value");
+            mylog("value: $value", LOGDEBUG);
             $count++;
         }
 
         $countR++;
     }
 
-    mylog(print_r($result, TRUE));
+    mylog(print_r($result, TRUE), LOGDEBUG);
     return $result;
 }
-
 ?>

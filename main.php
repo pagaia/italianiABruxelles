@@ -29,63 +29,66 @@ class mainloop {
     var $location;
 
     function start($telegram, $update) {
-        mylog(print_r($update, true));
-
-        date_default_timezone_set('Europe/Rome');
-        $today = date("Y-m-d H:i:s");
+//mylog(print_r($update, true));
+//date_default_timezone_set('Europe/Rome');
+// $today = date("Y-m-d H:i:s");
         $this->text = $update["message"]["text"];
         $this->chat_id = $update["message"]["chat"]["id"];
         $this->user_id = $update["message"]["from"]["id"];
         $this->username = $update["message"]["from"]["username"];
         $this->firstName = $update["message"]["from"]["first_name"];
         $this->lastName = $update["message"]["from"]["last_name"];
-        //$this->location = $update["message"]["location"];
-        // $reply_to_msg = $update["message"]["reply_to_message"];
+//$this->location = $update["message"]["location"];
+// $reply_to_msg = $update["message"]["reply_to_message"];
 
         $request = "The user $this->username ($this->firstName $this->lastName) id: $this->user_id has sent this msg : '$this->text' ";
         mylog($request);
         $this->shell($telegram);
 
-        //  $db = NULL;
+//  $db = NULL;
     }
 
-    //gestisce l'interfaccia utente
+//gestisce l'interfaccia utente
     function shell($telegram) {
         date_default_timezone_set('Europe/Rome');
-        $today = date("Y-m-d H:i:s");
+//$today = date("Y-m-d H:i:s");
         $log = "TEXT: $this->text, CHATID: $this->chat_id, USERID: $this->user_id, LOCATION: $this->location";
         mylog($log);
 
-        //first message
+//first message
         if ($this->text == "/start" || $this->text == "Informazioni") {
             $this->sendInformazioni($telegram);
         }
-        // send the information on how to search for info
+// send the help message
         elseif ($this->text == "/help" || $this->text == "Ricerca") {
             $this->sendHelp($telegram);
         } elseif ($this->location != null) {
-            //	$this->location_manager($telegram,$user_id,$chat_id,$location);
-            //	return;
+//	$this->location_manager($telegram,$user_id,$chat_id,$location);
+//	return;
         }
-        // if /p +ID command is received, the position of the row with ID is returned if there is a position
-        elseif (preg_match('/^\/p /', $this->text )) {
+// get all the information about the element by ID
+        elseif (preg_match('/^\/i /', $this->text)) {
+            $this->sendInfoByID($telegram);
+        }
+// if /p +ID command is received, the position of the row with ID is returned if there is a position
+        elseif (preg_match('/^\/p /', $this->text)) {
             mylog("strpos($this->text, '/p'): " . strpos($this->text, '/p'));
             $this->sendPosition($telegram);
         }
-        //elseif (strpos($this->text, '/') === false) {
-        // the following word after ? is the key for the search
-        elseif (preg_match('/^\/s /', $this->text )) {
+//elseif (strpos($this->text, '/') === false) {
+// the following word after ? is the key for the search
+        elseif (preg_match('/^\/s /', $this->text)) {
             $this->sendListResult($telegram);
         }
-        // if "PAROLE CHIAVE" is provided, a list with all keys and number of are sent
+// if "PAROLE CHIAVE" is provided, a list with all keys and number of are sent
         else if ($this->text == '/l' || $this->text == 'KEYWORDS') {
             $this->sendListKey($telegram);
         }
-        // if a number is provided, the contact information (Name and mobile number) of that row is sent
-        elseif (is_numeric($this->text) || preg_match('/^\/c /', $this->text )) {
+// if a number is provided, the contact information (Name and mobile number) of that row is sent
+        elseif (is_numeric($this->text) || preg_match('/^\/c /', $this->text)) {
             $this->sendContactInfo($telegram);
         }
-        // Otherwise ask to resend the command/search
+// Otherwise ask to resend the command/search
         else {
             $this->notUnderstand($telegram);
         }
@@ -165,9 +168,9 @@ class mainloop {
 
           }
          */
-        //$this->create_keyboard_temp($telegram, $chat_id);
+//$this->create_keyboard_temp($telegram, $chat_id);
         return;
-        //}
+//}
     }
 
     function create_keyboard_temp($telegram) {
@@ -217,13 +220,11 @@ class mainloop {
         $inizio = 1;
         $res = "";
 
-        //$csv = array_map('str_getcsv', file($urlgd));
         $json = file_get_contents($urlgd);
-        mylog(print_r($json, TRUE));
+       
 
         try {
             $myContent = parseGjson($json);
-            mylog(print_r($myContent, TRUE));
         } catch (Exception $e) {
             echo 'Caught exception: ', $e->getMessage(), "\n";
             $this->reply($telegram, 'Impossibile trovare il numero di telefono');
@@ -237,7 +238,9 @@ class mainloop {
             $this->reply($telegram, 'Nessun elemento trovato');
         }
 
-
+        if (!isset($myContent[0]['Mobile1']) && !isset($myContent[0]['Mobile2']) && !isset($myContent[0]['Phone'])) {
+            $this->reply($telegram, "Non esiste un numero di telefono per l'elemento ricercato");
+        }
         $chunks = str_split($res, self::MAX_LENGTH);
         foreach ($chunks as $chunk) {
             $contact = array(
@@ -295,18 +298,18 @@ class mainloop {
         $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20A%20IS%20NOT%20NULL";
         $urlgd .= rawurlencode("SELECT " . Key . ", count(" . ID . ") WHERE " . ID . " IS NOT NULL group by " . Key . " ");
         $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
-        sleep(1);
+
 
         $inizio = 1;
         $res = "";
-        //$comune="Lecce";
-        //echo $urlgd;
+//$comune="Lecce";
+//echo $urlgd;
         $json = file_get_contents($urlgd);
-        mylog(print_r($json, TRUE));
+        // mylog(print_r($json, TRUE));
 
         try {
             $myContent = parseGjson($json);
-            mylog(print_r($myContent, TRUE));
+            //  mylog(print_r($myContent, TRUE));
         } catch (Exception $e) {
             echo 'Caught exception: ', $e->getMessage(), "\n";
             $this->reply($telegram, 'Nessun elemento trovato');
@@ -320,7 +323,7 @@ class mainloop {
             $this->reply($telegram, 'Nessun elemento trovato');
         }
 
-        foreach ($myContent as $key => $value) {
+        foreach ($myContent as $value) {
             $res .= "N°: " . $value["count ID"] . " - " . $value["Key"] . "\n";
         }
 
@@ -332,7 +335,7 @@ class mainloop {
 
     function sendListResult($telegram) {
         $text = substr($this->text, 3);
-        
+
         $this->reply($telegram, "Sto cercando argomenti con parola chiave: " . $text);
 
         $text = str_replace(" ", "%20", $text);
@@ -346,16 +349,13 @@ class mainloop {
         $urlgd .= rawurlencode(" OR upper(" . profession . ") contains '") . $text . rawurlencode("' ");
 
         $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
-        sleep(1);
-        $inizio = 1;
         $homepage = "";
-      
-        $json = file_get_contents($urlgd);
-        mylog(print_r($json, TRUE));
 
+        $json = file_get_contents($urlgd);
+     
         try {
             $myContent = parseGjson($json);
-            mylog(print_r($myContent, TRUE));
+            //  mylog(print_r($myContent, TRUE));
         } catch (Exception $e) {
             echo 'Caught exception: ', $e->getMessage(), "\n";
             $this->reply($telegram, 'Nessun elemento trovato');
@@ -391,23 +391,110 @@ class mainloop {
             $result .= "<b>Description:</b> " . $value['Description'] . "\n";
             $result .= "<b>URL:</b> " . $value['web'] . "\n";
             $result .= "_____________\n";
-            
+
             $homepage .= $result;
             mylog($result);
         }
 
-        
+
 
         $chunks = str_split($homepage, self::MAX_LENGTH);
         foreach ($chunks as $chunk) {
-             $this->reply($telegram, $chunk);
+            $this->reply($telegram, $chunk);
+        }
+    }
+
+    function sendInfoByID($telegram) {
+        $text = substr($this->text, 3);
+
+        $this->reply($telegram, "Sto cercando le informazionio per l'elemento N° " . $text);
+
+        $text = str_replace(" ", "%20", $text);
+        $text = strtoupper($text);
+        $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20upper(C)%20contains%20%27";
+        $urlgd .= rawurlencode("SELECT * WHERE " . ID . " = ");
+        $urlgd .= $text;
+        $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
+
+        $homepage = "";
+
+        $json = file_get_contents($urlgd);
+
+        try {
+            $myContent = parseGjson($json);
+            //    mylog(print_r($myContent, TRUE));
+        } catch (Exception $e) {
+            echo 'Caught exception: ', $e->getMessage(), "\n";
+            $this->reply($telegram, 'Nessun elemento trovato');
+            return;
+        }
+
+        $count = count($myContent);
+
+        if ($count == 0) {
+            $this->reply($telegram, 'Nessun elemento trovato');
+            return;
+        }
+
+        foreach ($myContent as $value) {
+            $result = "\n";
+            $result .= "N°: " . $value["ID"] . "\n";
+            $result .= "<b>Last update:</b> " . convertGjsonDateToString($value['update']) . "\n";
+            $result .= "<b>Profession:</b> " . $value['profession'] . "\n";
+            $result .= "<b>Name:</b> " . $value['Name'] . "\n";
+            $result .= "<b>Email:</b> " . $value['Email'] . "\n";
+            $result .= "<b>Mobile1:</b> " . $value['Mobile1'] . "\n";
+            $result .= "<b>Mobile2:</b> " . $value['Mobile2'] . "\n";
+            $result .= "<b>Address:</b> " . $value['Address'] . "\n";
+            $result .= "<b>Description:</b> " . $value['Description'] . "\n";
+            $result .= "<b>URL:</b> " . $value['web'] . "\n";
+            $result .= "_____________\n";
+
+            $homepage .= $result;
+            mylog($result);
+        }
+
+
+
+        $chunks = str_split($homepage, self::MAX_LENGTH);
+        foreach ($chunks as $chunk) {
+            $this->reply($telegram, $chunk);
+        }
+    }
+
+    function resolveAddress($telegram, $address) {
+        try {
+            if (isset($address) && $address != "") {
+                $urlDecoder = "https://maps.googleapis.com/maps/api/geocode/json?";
+                $urlDecoder .= "key=" . GKEY . "&address=";
+                $urlDecoder .= rawurlencode($address);
+                $json = json_decode(file_get_contents($urlDecoder), TRUE);
+
+                $venue = array(
+                    'chat_id' => $this->chat_id,
+                    'latitude' => $json['results'][0]['geometry']['location']['lat'],
+                    'longitude' => $json['results'][0]['geometry']['location']['lng'],
+                    'title' => "Address",
+                    'address' => $address
+                );
+                mylog("latitude => " . $json['results'][0]['geometry']['location']['lat'] . ",
+                                longitude => " . $json['results'][0]['geometry']['location']['lng'] . ",
+                                title => Address,
+                                address => " . $address
+                );
+                $telegram->sendVenue($venue);
+            }
+        } catch (Exception $e) {
+            mylog("Exception: " . $e);
+            mylog("Impossibile recuperare l'indirizzo corretto");
+            $this->reply($telegram, "Impossibile recuperare l'indirizzo corretto");
         }
     }
 
     function sendPosition($telegram) {
         $text = substr($this->text, 3);
         $msg = "Sto elaborando la posizione per il N^: " . $text;
-         $this->reply($telegram, $msg);
+        $this->reply($telegram, $msg);
 
         $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20A%20%3D%20";
         $urlgd .= rawurlencode("SELECT * WHERE " . ID . " = ");
@@ -418,41 +505,26 @@ class mainloop {
         $homepage = "";
 
         $json = file_get_contents($urlgd);
-        mylog(print_r($json, TRUE));
+        //mylog(print_r($json, TRUE));
 
         try {
             $myContent = parseGjson($json);
-            mylog(print_r($myContent, TRUE));
+            // mylog(print_r($myContent, TRUE));
         } catch (Exception $e) {
             echo 'Caught exception: ', $e->getMessage(), "\n";
-            $this->reply($telegram,'Impossibile trovare la posizione');
+            $this->reply($telegram, 'Impossibile trovare la posizione');
             return;
         }
 
         $count = count($myContent);
 
         if ($count == 0) {
-            $this->reply($telegram,'Nessun elemento trovato');
+            $this->reply($telegram, 'Nessun elemento trovato');
 
             return;
         }
 
-        $chunks = str_split($homepage, self::MAX_LENGTH);
-        foreach ($chunks as $chunk) {
-            $venue = array(
-                'chat_id' => $this->chat_id,
-                'latitude' => $myContent[0]['lat'],
-                'longitude' => $myContent[0]['lng'],
-                'title' => "Address",
-                'address' => $myContent[0]['Address']
-            );
-            mylog("latitude => " . $myContent[0]['lat'] . ",
-                                longitude => " . $myContent[0]['lng'] . ",
-                                title => Address,
-                                address => " . $myContent[0]['Address']
-            );
-            $telegram->sendVenue($venue);
-        }
+        $this->resolveAddress($telegram, $myContent[0]['Address']);
     }
 
     /*
