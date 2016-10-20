@@ -33,16 +33,13 @@ function mylog($text, $level = 3) {
 }
 
 function convertGjsonDateToString($gdate) {
-//Date(2016,9,14,23,6,56)
     $matches = array();
     preg_match('/(\d{4}),(\d{1,2}),(\d{1,2}),(\d{1,2}),(\d{1,2}),(\d{1,2})/', $gdate, $matches);
-
     return $matches[1] . "/" . $matches[2] . "/" . $matches[3] . " " . $matches[4] . ":" . $matches[5] . ":" . $matches[6];
 }
 
 function parseGjson(
 $data) {
-//$data = '/*O_o*/ google.visualization.Query.setResponse({"version":"0.6","reqId":"0","status":"ok","sig":"2116319921","table":{"cols":[{"id":"A","label":"ID","type":"number","pattern":"General"},{"id":"B","label":"update","type":"datetime","pattern":"dd/MM/yyyy H.mm.ss"},{"id":"C","label":"Key","type":"string"},{"id":"D","label":"Name","type":"string"},{"id":"E","label":"Email","type":"string"},{"id":"F","label":"Phone","type":"string"},{"id":"G","label":"Mobile1","type":"string"},{"id":"H","label":"Mobile2","type":"string"},{"id":"I","label":"Address","type":"string"},{"id":"J","label":"Description","type":"string"},{"id":"K","label":"web","type":"string"},{"id":"L","label":"profession","type":"string"},{"id":"M","label":"lat","type":"string"},{"id":"N","label":"lng","type":"string"}],"rows":[{"c":[{"v":1.0,"f":"1"},{"v":"Date(2016, 9, 14, 23, 6, 56)","f":"14/10/2016 23.06.57"},{"v":"elettricista"},{"v":"SCIALLA MASSIMO"},{"v":"massimoscialla.be@gmail.com"},null,{"v":"+32 0491 29 21 60"},{"v":"0499 328 629"},null,{"v":"Impianti elettrici generali, civili e industriali (nuove installazioni e manutenzione) - Riparazione guasti - Messa in conformità impianto elettrico - Impianti tv via satellite - Impianti citofonici e video - Reti informatiche per trasmissione dati - Impianti di videosorveglianza - Impianti di allarme - Automazioni \u2013 Domotica."},null,{"v":"elettricista"},null,{"v":null}]},{"c":[{"v":2.0,"f":"2"},{"v":"Date(2016, 9, 14, 23, 6, 56)","f":"14/10/2016 23.06.57"},{"v":"Elettricista"},{"v":"MONTEDORO MIRKO"},null,null,{"v":"+32 (0)470390440"},null,null,{"v":"Installazioni e riparazioni elettriche di impianti civili;Disponibilità immediata."},null,{"v":"elettricista"},null,{"v":null}]},{"c":[{"v":3.0,"f":"3"},{"v":"Date(2016, 9, 14, 23, 6, 56)","f":"14/10/2016 23.06.57"},{"v":"Elettricista"},{"v":"NICOLA LEONZIO"},{"v":"nicolaleonzio83@gmail.com"},null,{"v":"+32 0488 80 24 58"},null,null,{"v":"Installazioni, ristrutturazioni, riparazioni, Impianti elettrici - Quadri elettrici, tv-sat, Audio-video, Illuminazione, Domotica, Sicurezza (tvcc e allarmi), Riscaldamento elettrico e Caldaie domestiche, Elettrodomestici."},null,{"v":"elettricista"},null,{"v":null}]}]}});';
 
     $data = substr($data, strpos($data, "{"));
     $data = substr($data, 0, -2);
@@ -59,7 +56,6 @@ $data) {
     if ($column_length == 0 || count($contentArr['table']['rows']) == 0) {
         mylog(print_r("Column lenght 0 o rows 0 ", TRUE));
         throw new Exception('Impossible to parse the json');
-      //  return false;
     }
 
     mylog("Foreach columns");
