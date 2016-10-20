@@ -68,21 +68,21 @@ class mainloop {
             //	return;
         }
         // if /p +ID command is received, the position of the row with ID is returned if there is a position
-        elseif (strpos($this->text, '/p') !== false) {
+        elseif (preg_match('/^\/p /', $this->text )) {
             mylog("strpos($this->text, '/p'): " . strpos($this->text, '/p'));
             $this->sendPosition($telegram);
         }
         //elseif (strpos($this->text, '/') === false) {
         // the following word after ? is the key for the search
-        elseif (strpos($this->text, '/s') !== false) {
+        elseif (preg_match('/^\/s /', $this->text )) {
             $this->sendListResult($telegram);
         }
         // if "PAROLE CHIAVE" is provided, a list with all keys and number of are sent
-        else if (strpos($this->text, '/l') !== false || strpos($this->text, 'KEYWORDS') !== false) {
+        else if ($this->text == '/l' || $this->text == 'KEYWORDS') {
             $this->sendListKey($telegram);
         }
         // if a number is provided, the contact information (Name and mobile number) of that row is sent
-        elseif (is_numeric($this->text) || strpos($this->text, '/c') !== false) {
+        elseif (is_numeric($this->text) || preg_match('/^\/c /', $this->text )) {
             $this->sendContactInfo($telegram);
         }
         // Otherwise ask to resend the command/search
@@ -192,58 +192,61 @@ class mainloop {
         $this->create_keyboard_temp($telegram);
     }
 
+    function reply($telegram, $msg) {
+        $content = array(
+            'chat_id' => $this->chat_id,
+            'text' => $msg,
+            'parse_mode' => 'HTML',
+            'disable_web_page_preview' => true
+        );
+        $telegram->sendMessage($content);
+    }
+
     function sendContactInfo($telegram) {
         if (strpos($this->text, '/c') !== false) {
             $this->text = substr($this->text, 3);
         }
-        $location = "Sto raccogliendo l'informazione N°: " . $this->text;
-        $content = array(
-            'chat_id' => $this->chat_id,
-            'text' => $location,
-            'disable_web_page_preview' => true
-        );
-        $telegram->sendMessage($content);
 
-        $urlgd = "https://spreadsheets.google.com/tq?tqx=out:csv&tq="; //SELECT%20%2A%20WHERE%20A%20%3D%20";
-        $urlgd .= rawurlencode("SELECT * WHERE ".ID." = ");
+        $this->reply($telegram, "Sto raccogliendo l'informazione N°: " . $this->text);
+
+        $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20A%20%3D%20";
+        $urlgd .= rawurlencode("SELECT * WHERE " . ID . " = ");
         $urlgd .= $this->text;
         $urlgd .= rawurlencode(" ");
         $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
         $inizio = 1;
         $res = "";
 
-        $csv = array_map('str_getcsv', file($urlgd));
+        //$csv = array_map('str_getcsv', file($urlgd));
+        $json = file_get_contents($urlgd);
+        mylog(print_r($json, TRUE));
 
-        $count = 0;
-        foreach ($csv as $data => $csv1) {
-            $count = $count + 1;
-        }
-        if ($count == 0 || $count == 1) {
-            $location = "Nessun risultato trovato";
-            $content = array(
-                'chat_id' => $this->chat_id,
-                'text' => $location,
-                'disable_web_page_preview' => true
-            );
-            $telegram->sendMessage($content);
+        try {
+            $myContent = parseGjson($json);
+            mylog(print_r($myContent, TRUE));
+        } catch (Exception $e) {
+            echo 'Caught exception: ', $e->getMessage(), "\n";
+            $this->reply($telegram, 'Impossibile trovare il numero di telefono');
+            return;
         }
 
+        $count = count($myContent);
 
 
-        for ($i = $inizio; $i < $count; $i++) {
-            //$res .= "\n";
-            $res .= $csv[$i][1] . "\n";
-            $res .= "____________\n";
+        if ($count == 0) {
+            $this->reply($telegram, 'Nessun elemento trovato');
         }
+
+
         $chunks = str_split($res, self::MAX_LENGTH);
         foreach ($chunks as $chunk) {
             $contact = array(
                 'chat_id' => $this->chat_id,
-                'phone_number' => $csv[1][6],
-                'first_name' => $csv[1][3],
-                'last_name' => $csv[1][2]
+                'phone_number' => $myContent[0]['Mobile1'],
+                'first_name' => $myContent[0]['Name'],
+                'last_name' => $myContent[0]['profession']
             );
-            mylog("phone_number: " . $csv[1][6] . ", first_name: " . $csv[1][3] . ", last_name: " . $csv[1][2]);
+            mylog("phone_number: " . $myContent[0]['phone_number'] . ", first_name: " . $myContent[0]['first_name'] . ", last_name: " . $myContent[0]['last_name']);
             $telegram->sendContact($contact);
         }
     }
@@ -255,20 +258,17 @@ class mainloop {
             'photo' => $img
         );
         $telegram->sendPhoto($contentp);
-        $reply = "Benvenuto. Questo è un servizio automatico (bot da Robot) di " . NAME . ". "
+
+        $msg = "Benvenuto. Questo è un servizio automatico (bot da Robot) di " . NAME . ". "
                 . "Puoi ricercare gli argomenti per parola chiave anteponendo il carattere ?, "
                 . "oppure cliccare su FAQ per avere l'elenco delle FAQ predefinite "
                 . "e quindi fare una ricerca per numero domanda corrispondente. "
                 . "In qualsiasi momento scrivendo /start ti ripeterò questo messaggio di benvenuto.\n"
                 . "Questo bot è stato realizzato da @pagaia per Italiani a Bruxelles. "
                 . "Il progetto e il codice sorgente sono liberamente riutilizzabili con licenza MIT.";
-        $content = array(
-            'chat_id' => $this->chat_id,
-            'text' => $reply,
-            'disable_web_page_preview' => true
-        );
-        $telegram->sendMessage($content);
-        $log = $today . ";new chat started;" . $this->chat_id . "\n";
+
+        $this->reply($telegram, $msg);
+        mylog("new chat started with " . $this->chat_id);
         $this->create_keyboard_temp($telegram);
 
         return;
@@ -283,33 +283,17 @@ class mainloop {
                 . "/c #ID - to get the phone of the element identified by the #ID (e.g. /c 123)\n"
                 . "/p #ID - to get the position of the element identified by the #ID (e.g. /p 134)\n";
 
-        $content = array(
-            'chat_id' => $this->chat_id,
-            'text' => $helpMessage,
-            'disable_web_page_preview' => true
-        );
-        $telegram->sendMessage($content);
+        $this->reply($telegram, $helpMessage);
 
         return;
     }
 
     function sendListKey($telegram) {
-//        $location = "Puoi digitare direttamente il N° dell'informazione che ti interessa";
-//        $content = array(
-//            'chat_id' => $this->chat_id,
-//            'text' => $location,
-//            'disable_web_page_preview' => true
-//        );
-//        $telegram->sendMessage($content);
-        $location = "Ecco la lista delle PAROLE CHIAVE disponibili:\n";
-        $content = array(
-            'chat_id' => $this->chat_id,
-            'text' => $location,
-            'disable_web_page_preview' => true
-        );
-        $telegram->sendMessage($content);
-        $urlgd = "https://spreadsheets.google.com/tq?tqx=out:csv&tq="; //SELECT%20%2A%20WHERE%20A%20IS%20NOT%20NULL";
-        $urlgd .= rawurlencode("SELECT ".Key.", count(".ID.") WHERE ".ID." IS NOT NULL group by ".Key." ");
+
+        $this->reply($telegram, "Ecco la lista delle Keywords disponibili:\n");
+
+        $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20A%20IS%20NOT%20NULL";
+        $urlgd .= rawurlencode("SELECT " . Key . ", count(" . ID . ") WHERE " . ID . " IS NOT NULL group by " . Key . " ");
         $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
         sleep(1);
 
@@ -317,179 +301,155 @@ class mainloop {
         $res = "";
         //$comune="Lecce";
         //echo $urlgd;
-        $csv = array_map('str_getcsv', file($urlgd));
-        //var_dump($csv[1][0]);
-        $count = 0;
-        foreach ($csv as $data => $csv1) {
-            $count = $count + 1;
-        }
-        if ($count == 0) {
-            $location = "Nessun risultato trovato";
-            $content = array(
-                'chat_id' => $this->chat_id,
-                'text' => $location,
-                'disable_web_page_preview' => true
-            );
-            $telegram->sendMessage($content);
+        $json = file_get_contents($urlgd);
+        mylog(print_r($json, TRUE));
+
+        try {
+            $myContent = parseGjson($json);
+            mylog(print_r($myContent, TRUE));
+        } catch (Exception $e) {
+            echo 'Caught exception: ', $e->getMessage(), "\n";
+            $this->reply($telegram, 'Nessun elemento trovato');
+            return;
         }
 
-        for ($row = $inizio; $row < $count; $row++) {
-            //$res .= "\n";
-            $res .= "N°: " . $csv[$row][1] . " - " . $csv[$row][0] . "\n";
+        $csv = array_map('str_getcsv', file($urlgd));
+        $count = count($myContent);
+
+        if ($count == 0) {
+            $this->reply($telegram, 'Nessun elemento trovato');
         }
+
+        foreach ($myContent as $key => $value) {
+            $res .= "N°: " . $value["count ID"] . " - " . $value["Key"] . "\n";
+        }
+
         $chunks = str_split($res, self::MAX_LENGTH);
         foreach ($chunks as $chunk) {
-            $content = array(
-                'chat_id' => $this->chat_id,
-                'text' => $chunk,
-                'disable_web_page_preview' => true
-            );
-            $telegram->sendMessage($content);
+            $this->reply($telegram, $chunk);
         }
     }
 
     function sendListResult($telegram) {
         $text = substr($this->text, 3);
-        //$text = str_replace("?", "", $this->text);
-        $location = "Sto cercando argomenti con parola chiave: " . $text;
-        $content = array(
-            'chat_id' => $this->chat_id,
-            'text' => $location,
-            'disable_web_page_preview' => true
-        );
-        $telegram->sendMessage($content);
+        
+        $this->reply($telegram, "Sto cercando argomenti con parola chiave: " . $text);
+
         $text = str_replace(" ", "%20", $text);
         $text = strtoupper($text);
-        $urlgd = "https://spreadsheets.google.com/tq?tqx=out:csv&tq="; //SELECT%20%2A%20WHERE%20upper(C)%20contains%20%27";
+        $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20upper(C)%20contains%20%27";
         $urlgd .= rawurlencode("SELECT * WHERE ");
-        $urlgd .= rawurlencode(" upper(".Key.") contains '") . $text . rawurlencode("' ");
-        $urlgd .= rawurlencode(" OR upper(".Name.") contains '") . $text . rawurlencode("' ");
-        $urlgd .= rawurlencode(" OR upper(".Email.") contains '") . $text . rawurlencode("' ");
-        $urlgd .= rawurlencode(" OR upper(".Description.") contains '") . $text . rawurlencode("' ");
-        $urlgd .= rawurlencode(" OR upper(".profession.") contains '") . $text . rawurlencode("' ");
+        $urlgd .= rawurlencode(" upper(" . Key . ") contains '") . $text . rawurlencode("' ");
+        $urlgd .= rawurlencode(" OR upper(" . Name . ") contains '") . $text . rawurlencode("' ");
+        $urlgd .= rawurlencode(" OR upper(" . Email . ") contains '") . $text . rawurlencode("' ");
+        $urlgd .= rawurlencode(" OR upper(" . Description . ") contains '") . $text . rawurlencode("' ");
+        $urlgd .= rawurlencode(" OR upper(" . profession . ") contains '") . $text . rawurlencode("' ");
 
         $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
         sleep(1);
         $inizio = 1;
         $homepage = "";
-        //$comune="Lecce";
-        //echo $urlgd;
-        $csv = array_map('str_getcsv', file($urlgd));
-        //var_dump($csv[1][0]);
-        $count = 0;
-        foreach ($csv as $data => $csv1) {
-            $count = $count + 1;
+      
+        $json = file_get_contents($urlgd);
+        mylog(print_r($json, TRUE));
+
+        try {
+            $myContent = parseGjson($json);
+            mylog(print_r($myContent, TRUE));
+        } catch (Exception $e) {
+            echo 'Caught exception: ', $e->getMessage(), "\n";
+            $this->reply($telegram, 'Nessun elemento trovato');
+            return;
         }
 
-        if ($count == 0 or $count == 1) {
-            $location = "Nessun risultato trovato";
-            $content = array(
-                'chat_id' => $this->chat_id,
-                'text' => $location,
-                'disable_web_page_preview' => true
-            );
-            $telegram->sendMessage($content);
+        $count = count($myContent);
+
+        if ($count == 0) {
+            $this->reply($telegram, 'Nessun elemento trovato');
+
             return;
         }
         if ($count > 40) {
-            $location = "Troppe risposte per il criterio scelto. Ti preghiamo di fare una ricerca più circoscritta";
-            $content = array(
-                'chat_id' => $this->chat_id,
-                'text' => $location,
-                'disable_web_page_preview' => true
-            );
-            $telegram->sendMessage($content);
+            $this->reply($telegram, "Troppe risposte per il criterio scelto. Ti preghiamo di fare una ricerca più circoscritta");
+
             return;
         }
 
-        $location = (1 == ($count - 1) ? "Trovato 1 elemento" : "Trovati " . ($count - 1) . " elementi");
-        $content = array(
-            'chat_id' => $this->chat_id,
-            'text' => $location . " $urlgd" ,
-            'disable_web_page_preview' => true
-        );
-        $telegram->sendMessage($content);
+        $location = (1 == $count ? "Trovato 1 elemento" : "Trovati " . $count . " elementi");
+        $this->reply($telegram, $location);
 
-        function format_elements($csv, $row) {
+        foreach ($myContent as $value) {
             $result = "\n";
-            $result .= "N°: " . $csv[$row][0] . "\n";
-            for ($i = 1; $i < 12; $i++) {
-                $result .= $csv[0][$i] . ": " . $csv[$row][$i] . "\n";
-            }
+            $result .= "N°: " . $value["ID"] . "\n";
+            $result .= "<b>Last update:</b> " . convertGjsonDateToString($value['update']) . "\n";
+            $result .= "<b>Profession:</b> " . $value['profession'] . "\n";
+            $result .= "<b>Name:</b> " . $value['Name'] . "\n";
+            $result .= "<b>Email:</b> " . $value['Email'] . "\n";
+            $result .= "<b>Mobile1:</b> " . $value['Mobile1'] . "\n";
+            $result .= "<b>Mobile2:</b> " . $value['Mobile2'] . "\n";
+            $result .= "<b>Address:</b> " . $value['Address'] . "\n";
+            $result .= "<b>Description:</b> " . $value['Description'] . "\n";
+            $result .= "<b>URL:</b> " . $value['web'] . "\n";
+            $result .= "_____________\n";
+            
+            $homepage .= $result;
             mylog($result);
-            return $result;
         }
 
-        for ($i = $inizio; $i < $count; $i++) {
-            $homepage .= format_elements($csv, $i);
-        }
+        
 
         $chunks = str_split($homepage, self::MAX_LENGTH);
         foreach ($chunks as $chunk) {
-            $content = array(
-                'chat_id' => $this->chat_id,
-                'text' => $chunk,
-                'disable_web_page_preview' => true
-            );
-            $telegram->sendMessage($content);
+             $this->reply($telegram, $chunk);
         }
     }
 
     function sendPosition($telegram) {
         $text = substr($this->text, 3);
-        $location = "Sto elaborando la posizione per il N^: " . $text;
-        $content = array(
-            'chat_id' => $this->chat_id,
-            'text' => $location,
-            'disable_web_page_preview' => true
-        );
-        $telegram->sendMessage($content);
+        $msg = "Sto elaborando la posizione per il N^: " . $text;
+         $this->reply($telegram, $msg);
 
-        $urlgd = "https://spreadsheets.google.com/tq?tqx=out:csv&tq="; //SELECT%20%2A%20WHERE%20A%20%3D%20";
-        $urlgd .= rawurlencode("SELECT * WHERE ".ID." = ");
+        $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20A%20%3D%20";
+        $urlgd .= rawurlencode("SELECT * WHERE " . ID . " = ");
         $urlgd .= $text;
-        $urlgd .= rawurlencode(" AND ".lat." IS NOT NULL AND ".lng." IS NOT NULL ");
+        $urlgd .= rawurlencode(" AND " . lat . " IS NOT NULL AND " . lng . " IS NOT NULL ");
         $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
         $inizio = 1;
         $homepage = "";
 
-        $csv = array_map('str_getcsv', file($urlgd));
+        $json = file_get_contents($urlgd);
+        mylog(print_r($json, TRUE));
 
-        $count = 0;
-        foreach ($csv as $data => $csv1) {
-            $count = $count + 1;
-        }
-
-        if ($count == 0 || $count == 1) {
-            $location = "Nessun risultato trovato";
-            $content = array(
-                'chat_id' => $this->chat_id,
-                'text' => $location,
-                'disable_web_page_preview' => true
-            );
-            $telegram->sendMessage($content);
+        try {
+            $myContent = parseGjson($json);
+            mylog(print_r($myContent, TRUE));
+        } catch (Exception $e) {
+            echo 'Caught exception: ', $e->getMessage(), "\n";
+            $this->reply($telegram,'Impossibile trovare la posizione');
             return;
         }
 
-        for ($i = $inizio; $i < $count; $i++) {
-            $homepage .= "\n";
-            $homepage .= $csv[$i][1] . "\n";
-            $homepage .= "____________\n";
+        $count = count($myContent);
+
+        if ($count == 0) {
+            $this->reply($telegram,'Nessun elemento trovato');
+
+            return;
         }
 
         $chunks = str_split($homepage, self::MAX_LENGTH);
         foreach ($chunks as $chunk) {
             $venue = array(
                 'chat_id' => $this->chat_id,
-                'latitude' => $csv[1][11],
-                'longitude' => $csv[1][12],
+                'latitude' => $myContent[0]['lat'],
+                'longitude' => $myContent[0]['lng'],
                 'title' => "Address",
-                'address' => $csv[1][8]
+                'address' => $myContent[0]['Address']
             );
-            mylog("latitude => " . $csv[1][11] . ",
-                                longitude => " . $csv[1][12] . ",
+            mylog("latitude => " . $myContent[0]['lat'] . ",
+                                longitude => " . $myContent[0]['lng'] . ",
                                 title => Address,
-                                address => " . $csv[1][8]
+                                address => " . $myContent[0]['Address']
             );
             $telegram->sendVenue($venue);
         }
