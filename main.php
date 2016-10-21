@@ -27,22 +27,26 @@ class mainloop {
     var $firstName;
     var $lastName;
     var $location;
+    var $reply_to_msg;
 
     function start($telegram, $update) {
-//mylog(print_r($update, true));
-//date_default_timezone_set('Europe/Rome');
-// $today = date("Y-m-d H:i:s");
-        $this->text = $update["message"]["text"];
+
+        mylog("Update: " . print_r($update, TRUE), LOGDEBUG);
+
+        $this->text = (isset($update["message"]["text"]) ? $update["message"]["text"] : NULL);
         $this->chat_id = $update["message"]["chat"]["id"];
         $this->user_id = $update["message"]["from"]["id"];
         $this->username = $update["message"]["from"]["username"];
         $this->firstName = $update["message"]["from"]["first_name"];
         $this->lastName = $update["message"]["from"]["last_name"];
-//$this->location = $update["message"]["location"];
-// $reply_to_msg = $update["message"]["reply_to_message"];
+        $this->location = (isset($update["message"]["location"]) ? $update["message"]["location"] : NULL);
+        $this->reply_to_msg = (isset($update["message"]["reply_to_message"]) ? $update["message"]["reply_to_message"] : NULL);
 
-        $request = "The user $this->username ($this->firstName $this->lastName) id: $this->user_id has sent this msg : '$this->text' ";
+        $request = "The user $this->username ($this->firstName $this->lastName) with id: $this->user_id has sent this msg : '$this->text' ";
         mylog($request);
+        mylog("Location: " . print_r($this->location, TRUE));
+        mylog("Reply to message: " . print_r($this->reply_to_msg, TRUE));
+
         $this->shell($telegram);
 
 //  $db = NULL;
@@ -52,9 +56,12 @@ class mainloop {
     function shell($telegram) {
         date_default_timezone_set('Europe/Rome');
 //$today = date("Y-m-d H:i:s");
-        $log = "TEXT: $this->text, CHATID: $this->chat_id, USERID: $this->user_id, LOCATION: $this->location";
-        mylog($log);
-
+        // $log = "TEXT: $this->text, CHATID: $this->chat_id, USERID: $this->user_id, LOCATION: " . print_r($this->location, TRUE);
+        // mylog($log);
+        // check if a position has been given
+        if (isset($this->location)) {
+            
+        }
 //first message
         if ($this->text == "/start" || $this->text == "Informazioni") {
             $this->sendInformazioni($telegram);
@@ -71,8 +78,7 @@ class mainloop {
             $this->sendInfoByID($telegram);
         }
 // if /p +ID command is received, the position of the row with ID is returned if there is a position
-        elseif (preg_match('/^\/p /', $this->text)) {
-            mylog("strpos($this->text, '/p'): " . strpos($this->text, '/p'));
+        elseif (preg_match('/^\/p /', $this->text) || preg_match('/^\/pos_/', $this->text)) {
             $this->sendPosition($telegram);
         }
 //elseif (strpos($this->text, '/') === false) {
@@ -85,7 +91,8 @@ class mainloop {
             $this->sendListKey($telegram);
         }
 // if a number is provided, the contact information (Name and mobile number) of that row is sent
-        elseif (is_numeric($this->text) || preg_match('/^\/c /', $this->text)) {
+        // elseif (is_numeric($this->text) || preg_match('/^\/c /', $this->text)) {
+        elseif (preg_match('/^\/id_(\d)+/', $this->text)) {
             $this->sendContactInfo($telegram);
         }
 // Otherwise ask to resend the command/search
@@ -206,8 +213,8 @@ class mainloop {
     }
 
     function sendContactInfo($telegram) {
-        if (strpos($this->text, '/c') !== false) {
-            $this->text = substr($this->text, 3);
+        if (strpos($this->text, '/id_') !== false) {
+            $this->text = substr($this->text, 4);
         }
 
         $this->reply($telegram, "Sto raccogliendo l'informazione N°: " . $this->text);
@@ -221,7 +228,7 @@ class mainloop {
         $res = "";
 
         $json = file_get_contents($urlgd);
-       
+
 
         try {
             $myContent = parseGjson($json);
@@ -236,20 +243,27 @@ class mainloop {
 
         if ($count == 0) {
             $this->reply($telegram, 'Nessun elemento trovato');
+            return;
         }
 
         if (!isset($myContent[0]['Mobile1']) && !isset($myContent[0]['Mobile2']) && !isset($myContent[0]['Phone'])) {
             $this->reply($telegram, "Non esiste un numero di telefono per l'elemento ricercato");
+            return;
         }
+
+        $phoneN = ( isset($myContent[0]['Mobile1']) ? $myContent[0]['Mobile1'] :
+                        (isset($myContent[0]['Phone']) ? $myContent[0]['Phone'] :
+                                (isset($myContent[0]['Mobile2']) ? $myContent[0]['Mobile2'] : "")));
+
         $chunks = str_split($res, self::MAX_LENGTH);
         foreach ($chunks as $chunk) {
             $contact = array(
                 'chat_id' => $this->chat_id,
-                'phone_number' => $myContent[0]['Mobile1'],
+                'phone_number' => $phoneN,
                 'first_name' => $myContent[0]['Name'],
                 'last_name' => $myContent[0]['profession']
             );
-            mylog("phone_number: " . $myContent[0]['phone_number'] . ", first_name: " . $myContent[0]['first_name'] . ", last_name: " . $myContent[0]['last_name']);
+            mylog("phone_number: " . $phoneN . ", first_name: " . $myContent[0]['first_name'] . ", last_name: " . $myContent[0]['last_name']);
             $telegram->sendContact($contact);
         }
     }
@@ -352,7 +366,7 @@ class mainloop {
         $homepage = "";
 
         $json = file_get_contents($urlgd);
-     
+
         try {
             $myContent = parseGjson($json);
             //  mylog(print_r($myContent, TRUE));
@@ -378,18 +392,20 @@ class mainloop {
         $location = (1 == $count ? "Trovato 1 elemento" : "Trovati " . $count . " elementi");
         $this->reply($telegram, $location);
 
-        foreach ($myContent as $value) {
+        foreach ($myContent as $v) {
             $result = "\n";
-            $result .= "N°: " . $value["ID"] . "\n";
-            $result .= "<b>Last update:</b> " . convertGjsonDateToString($value['update']) . "\n";
-            $result .= "<b>Profession:</b> " . $value['profession'] . "\n";
-            $result .= "<b>Name:</b> " . $value['Name'] . "\n";
-            $result .= "<b>Email:</b> " . $value['Email'] . "\n";
-            $result .= "<b>Mobile1:</b> " . $value['Mobile1'] . "\n";
-            $result .= "<b>Mobile2:</b> " . $value['Mobile2'] . "\n";
-            $result .= "<b>Address:</b> " . $value['Address'] . "\n";
-            $result .= "<b>Description:</b> " . $value['Description'] . "\n";
-            $result .= "<b>URL:</b> " . $value['web'] . "\n";
+            $result .= "N°: /id_" . $v["ID"] . "\n";
+            $result .= "<b>Last update:</b> " . convertGjsonDateToString($v['update']) . "\n";
+            $result .= (isset($v['profession']) && $v['profession'] != "") ? "<b>Profession:</b> " . $v['profession'] . "\n" : "";
+            $result .= (isset($v['Name']) && $v['Name'] != "") ? "<b>Name:</b> " . $v['Name'] . "\n" : "";
+            $result .= (isset($v['Email']) && $v['Email'] != "") ? "<b>Email:</b>  " . $v['Email'] . "\n" : "";
+            $result .= (isset($v['Phone']) && $v['Phone'] != "") ? "<b>Phone:</b> " . $v['Phone'] . "\n" : "";
+            $result .= (isset($v['Mobile1']) && $v['Mobile1'] != "") ? "<b>Mobile1:</b> " . $v['Mobile1'] . "\n" : "";
+            $result .= (isset($v['Mobile2']) && $v['Mobile2'] != "") ? "<b>Mobile2:</b> " . $v['Mobile2'] . "\n" : "";
+            $result .= (isset($v['Address']) && $v['Address'] != "") ? "<b>Address:</b> " . $v['Address'] . "\n" : "";
+            $result .= (isset($v['Address']) || (isset($v['lat']) && isset($v['lng']))) ? "<b>GetPosition:</b> /pos_" . $v['ID'] . "\n" : "";
+            $result .= (isset($v['Description']) && $v['Description'] != "") ? "<b>Description:</b> " . $v['Description'] . "\n" : "";
+            $result .= (isset($v['web']) && $v['web'] != "") ? "<b>URL:</b> " . $v['web'] . "\n" : "";
             $result .= "_____________\n";
 
             $homepage .= $result;
@@ -436,18 +452,20 @@ class mainloop {
             return;
         }
 
-        foreach ($myContent as $value) {
+        foreach ($myContent as $v) {
             $result = "\n";
-            $result .= "N°: " . $value["ID"] . "\n";
-            $result .= "<b>Last update:</b> " . convertGjsonDateToString($value['update']) . "\n";
-            $result .= "<b>Profession:</b> " . $value['profession'] . "\n";
-            $result .= "<b>Name:</b> " . $value['Name'] . "\n";
-            $result .= "<b>Email:</b> " . $value['Email'] . "\n";
-            $result .= "<b>Mobile1:</b> " . $value['Mobile1'] . "\n";
-            $result .= "<b>Mobile2:</b> " . $value['Mobile2'] . "\n";
-            $result .= "<b>Address:</b> " . $value['Address'] . "\n";
-            $result .= "<b>Description:</b> " . $value['Description'] . "\n";
-            $result .= "<b>URL:</b> " . $value['web'] . "\n";
+            $result .= "N°: /id_" . $v["ID"] . "\n";
+            $result .= "<b>Last update:</b> " . convertGjsonDateToString($v['update']) . "\n";
+            $result .= isset($v['profession']) ? "<b>Profession:</b> " . $v['profession'] . "\n" : "";
+            $result .= isset($v['Name']) ? "<b>Name:</b> " . $v['Name'] . "\n" : "";
+            $result .= isset($v['Email']) ? "<b>Email:</b>  " . $v['Email'] . "\n" : "";
+            $result .= isset($v['Phone']) ? "<b>Phone:</b> " . $v['Phone'] . "\n" : "";
+            $result .= isset($v['Mobile1']) ? "<b>Mobile1:</b> " . $v['Mobile1'] . "\n" : "";
+            $result .= isset($v['Mobile2']) ? "<b>Mobile2:</b> " . $v['Mobile2'] . "\n" : "";
+            $result .= isset($v['Address']) ? "<b>Address:</b> " . $v['Address'] . "\n" : "";
+            $result .= (isset($v['Address']) || (isset($v['lat']) && isset($v['lng']))) ? "<b>GetPosition:</b> /pos_" . $v['ID'] . "\n" : "";
+            $result .= isset($v['Description']) ? "<b>Description:</b> " . $v['Description'] . "\n" : "";
+            $result .= isset($v['web']) ? "<b>URL:</b> " . $v['web'] . "\n" : "";
             $result .= "_____________\n";
 
             $homepage .= $result;
@@ -492,14 +510,15 @@ class mainloop {
     }
 
     function sendPosition($telegram) {
-        $text = substr($this->text, 3);
+        $text = preg_match('/^\/pos_/', $this->text) ? substr($this->text, 5) : substr($this->text, 3);
+
         $msg = "Sto elaborando la posizione per il N^: " . $text;
         $this->reply($telegram, $msg);
 
         $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20A%20%3D%20";
         $urlgd .= rawurlencode("SELECT * WHERE " . ID . " = ");
         $urlgd .= $text;
-        $urlgd .= rawurlencode(" AND " . lat . " IS NOT NULL AND " . lng . " IS NOT NULL ");
+        //$urlgd .= rawurlencode(" AND " . lat . " IS NOT NULL AND " . lng . " IS NOT NULL ");
         $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
         $inizio = 1;
         $homepage = "";
