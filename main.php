@@ -5,6 +5,7 @@
  * @author Francesco Piero Paolicelli @piersoft
  */
 include("Telegram.php");
+include("QueryLocation.php");
 
 /**
  * List of commands:
@@ -60,10 +61,25 @@ class mainloop {
         // mylog($log);
         // check if a position has been given
         if (isset($this->location)) {
+            //prelevo dati da OSM sulla base della mia posizione
+            $osm_data=give_osm_data($this->location['latitude'],$this->location['longitude']);
             
         }
+        if ($this->text == "online") {
+            mylog("Hai selezionato online");
+            try {
+
+                $inline_keyboard = [
+                    ['text' => 'numero', 'callback_data' => 'getNumber']
+                ];
+
+                $this->create_inline_keyboard($telegram,  "recupera",  $inline_keyboard);
+            } catch (Exception $e) {
+                mylog("Error: " . $e->getMessage(), LOGERROR);
+            }
+        }
 //first message
-        if ($this->text == "/start" || $this->text == "Informazioni") {
+        elseif ($this->text == "/start" || $this->text == "Informazioni") {
             $this->sendInformazioni($telegram);
         }
 // send the help message
@@ -180,8 +196,30 @@ class mainloop {
 //}
     }
 
+    /**
+     * This function get as input the telegram library and the option array
+     * @param type $telegram
+     * @param type $option this is an array with the following elements:
+     * msg: the text to show in the message
+     * text: the text of the button
+     * url: the url to use for the button
+     */
+    function create_inline_keyboard($telegram, $msg, array $option) {
+        mylog(print_r($option, TRUE));
+
+        $keyb = json_encode(['inline_keyboard' => [$option]]);
+        mylog($keyb);
+        $content = array(
+            'chat_id' => $this->chat_id,
+            'reply_markup' => $keyb,
+            'text' => $msg
+        );
+        //return $content;
+        $telegram->sendMessage($content);
+    }
+
     function create_keyboard_temp($telegram) {
-        $option = array(["KEYWORDS", "Ricerca"], ["/help"]);
+        $option = array(["KEYWORDS", "Ricerca"]);
         $keyb = $telegram->buildKeyBoard($option, $onetime = false);
         $content = array(
             'chat_id' => $this->chat_id,
@@ -412,8 +450,6 @@ class mainloop {
             mylog($result);
         }
 
-
-
         $chunks = str_split($homepage, self::MAX_LENGTH);
         foreach ($chunks as $chunk) {
             $this->reply($telegram, $chunk);
@@ -512,7 +548,7 @@ class mainloop {
     function sendPosition($telegram) {
         $text = preg_match('/^\/pos_/', $this->text) ? substr($this->text, 5) : substr($this->text, 3);
 
-        $msg = "Sto elaborando la posizione per il N^: " . $text;
+        $msg = "Sto elaborando la posizione per il N°: " . $text;
         $this->reply($telegram, $msg);
 
         $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20A%20%3D%20";

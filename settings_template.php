@@ -11,6 +11,15 @@ define('GDRIVEGID3', ''); // gid dell'eventuale altro foglio di calcolo per esem
 define('NAME', ''); // nome del Bot che appare nelle Informazioni /start
 define('FOLDERLOG', ''); // define the folder log for all logs
 
+
+
+// Your Openstreetmap Query settings
+define('AROUND', 1000);						//Number of meters to calculate radius to search
+define('MAX', 10);						//max number of points to search
+//define('TAG','"emergency"="defibrillator"');			//tag to search accoring to Overpass_API Query Language
+define('TAG','"name"="Kit soccorso bici"');			//tag to search accoring to Overpass_API Query Language
+
+
 // Define the database fields for gdrive
 define('ID', 'A');
 define('update', 'B');

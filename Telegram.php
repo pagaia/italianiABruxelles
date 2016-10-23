@@ -197,6 +197,26 @@ class Telegram {
         curl_close($ch);
     }
 
+    //build an inline keyboard
+    public function buildInLineKeyBoard(array $option) {
+        $replyMarkup = array(
+            'inline_keyboard' => array(
+                array(
+                    'text' => $option['text']
+                   // 'url' => $option['url']
+                   // 'callback_data' => $option['value']
+                   ),
+                array(
+                    'text' => $option['text'].'1'
+                   // 'url' => $option['url']
+                   // 'callback_data' => $option['value'].'1'
+                )
+        ));
+        mylog($replyMarkup);
+        $encodedMarkup = json_encode($replyMarkup, true);
+        return $encodedMarkup;
+    }
+
     //costruisce la tastiera del servizio
     public function buildKeyBoard(array $options, $onetime = true, $resize = true, $selective = true) {
         $replyMarkup = array(
@@ -218,7 +238,7 @@ class Telegram {
         return $encodedMarkup;
     }
 
-     /// Create a KeyboardButton
+    /// Create a KeyboardButton
     /** This object represents one button of an inline keyboard. You must use exactly one of the optional fields.
      * \param $text String; Array of button rows, each represented by an Array of Strings
      * \param $request_contact Boolean Optional. If True, the user's phone number will be sent as a contact when the button is pressed. Available in private chats only
@@ -231,7 +251,7 @@ class Telegram {
             'request_contact' => $request_contact,
             'request_location' => $request_location
         );
-      
+
         return $replyMarkup;
     }
 
@@ -287,5 +307,4 @@ if (!function_exists('curl_file_create')) {
     }
 
 }
-
 ?>

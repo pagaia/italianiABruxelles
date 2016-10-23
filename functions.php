@@ -33,7 +33,7 @@ function mylog($text, $level = LOGINFO) {
                 break;
         }
 
-        $log .= "$text \n";
+        $log .= (is_array($text) ? print_r($text, TRUE) : $text) . "\n";
         file_put_contents(FOLDERLOG . '/italianiAbruxelles_' . date("j.n.Y") . '.log', $log, FILE_APPEND);
     }
 }
