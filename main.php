@@ -21,6 +21,8 @@ class mainloop {
 
     const MAX_LENGTH = 4096;
 
+    var $mylatitude = 50.827287;
+    var $mylongitude = 4.398222;
     var $text;
     var $chat_id;
     var $user_id;
@@ -57,19 +59,37 @@ class mainloop {
     function shell($telegram) {
         date_default_timezone_set('Europe/Rome');
 
-        // check if a position has been given
+// check if a position has been given
         if (isset($this->location)) {
+            mylog($this->location);
+            $this->reply($telegram, "Posizione salvata! Esegui una ricerca ora");
+            return;
+            $this->location_manager($telegram, $this->user_id, $this->chat_id, $this->location);
+            return;
+
             $lat = 41.86265535999481;
             $lon = 12.485689999302197;
-            //prelevo dati da OSM sulla base della mia posizione
+//prelevo dati da OSM sulla base della mia posizione
             $osm_data = give_osm_data($this->location['latitude'], $this->location['longitude']);
             $this->create_keyboard_temp($telegram);
 //            $osm_data = give_osm_data($lat, $lon);
-        }
-        if ($this->text == "online") {
+        } elseif ($this->reply_to_msg != null) {
+//inserisce la segnalazione nel DB delle segnalazioni georiferite
+//            $statement = "UPDATE " . DB_TABLE_GEO . " SET text='" . $text . "' WHERE bot_request_message ='" . $reply_to_msg['message_id'] . "'";
+//            print_r($reply_to_msg['message_id']);
+//            $db->exec($statement);
+            $reply = "Segnalazione Registrata. Grazie!";
+            $content = array('chat_id' => $this->chat_id, 'text' => $reply);
+            $telegram->sendMessage($content);
+//$log = $today . ";information for maps recorded;" . $chat_id . "\n";
+
+            $this->create_keyboard_temp($telegram);
+//aggiorno dati mappa
+// exec('sqlite3 -header -csv db.sqlite "select * from segnalazioni;" > map_data.csv');
+        } elseif ($this->text == "online") {
             $lat = 41.86265535999481;
             $lon = 12.485689999302197;
-            //prelevo dati da OSM sulla base della mia posizione
+//prelevo dati da OSM sulla base della mia posizione
             $osm_data = give_osm_data($lat, $lon);
 
             mylog("Hai selezionato online");
@@ -107,7 +127,7 @@ class mainloop {
         }
 //elseif (strpos($this->text, '/') === false) {
 // the following word after ? is the key for the search
-        elseif (preg_match('/^\/s /', $this->text) || "Pizzerie" == $this->text) {
+        elseif (preg_match('/^\?/', $this->text) || "Pizzerie" == $this->text) {
             $this->sendListResult($telegram);
         }
 // if "PAROLE CHIAVE" is provided, a list with all keys and number of are sent
@@ -115,7 +135,7 @@ class mainloop {
             $this->sendListKey($telegram);
         }
 // if a number is provided, the contact information (Name and mobile number) of that row is sent
-        // elseif (is_numeric($this->text) || preg_match('/^\/c /', $this->text)) {
+// elseif (is_numeric($this->text) || preg_match('/^\/c /', $this->text)) {
         elseif (preg_match('/^\/id_(\d)+/', $this->text)) {
             $this->sendContactInfo($telegram);
         }
@@ -222,7 +242,7 @@ class mainloop {
             'reply_markup' => $keyb,
             'text' => $msg
         );
-        //return $content;
+//return $content;
         $telegram->sendMessage($content);
     }
 
@@ -333,10 +353,10 @@ class mainloop {
 
     function sendHelp($telegram) {
         $helpMessage = "Commands List:\n"
-                . "/start or Informazioni - to show the information about the BOT\n"
+                . "/start - to show the information about the BOT\n"
                 . "/help - to show this menu\n"
                 . "/l - to list all the keywords\n"
-                . "/s word - to perform a search on all Database(e.g. /s doctor )\n"
+                . "? - to perform a search on all Database(e.g. ?doctor )\n"
                 . "/c #ID - to get the phone of the element identified by the #ID (e.g. /c 123)\n"
                 . "/p #ID - to get the position of the element identified by the #ID (e.g. /p 134)\n";
 
@@ -347,7 +367,7 @@ class mainloop {
 
     function sendListKey($telegram) {
 
-        $this->reply($telegram, "Ecco la lista delle Keywords disponibili:\n");
+        $this->reply($telegram, "Sto interrogando il database:\n");
 
         $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20A%20IS%20NOT%20NULL";
         $urlgd .= rawurlencode("SELECT " . Key . ", count(" . ID . ") WHERE " . ID . " IS NOT NULL group by " . Key . "  ORDER BY count(" . ID . ") DESC ");
@@ -359,11 +379,11 @@ class mainloop {
 //$comune="Lecce";
 //echo $urlgd;
         $json = file_get_contents($urlgd);
-        // mylog(print_r($json, TRUE));
+// mylog(print_r($json, TRUE));
 
         try {
             $myContent = parseGjson($json);
-            //  mylog(print_r($myContent, TRUE));
+//  mylog(print_r($myContent, TRUE));
         } catch (Exception $e) {
             echo 'Caught exception: ', $e->getMessage(), "\n";
             $this->reply($telegram, 'Nessun elemento trovato');
@@ -388,7 +408,7 @@ class mainloop {
     }
 
     function sendListResult($telegram) {
-        $text = (preg_match('/^\/s /', $this->text) ) ? substr($this->text, 3) : $this->text;
+        $text = (preg_match('/^\?/', $this->text) ) ? substr($this->text, 1) : $this->text;
 
         $this->reply($telegram, "Sto cercando argomenti con parola chiave: " . $text);
 
@@ -409,7 +429,7 @@ class mainloop {
 
         try {
             $myContent = parseGjson($json);
-            //  mylog(print_r($myContent, TRUE));
+//  mylog(print_r($myContent, TRUE));
         } catch (Exception $e) {
             echo 'Caught exception: ', $e->getMessage(), "\n";
             $this->reply($telegram, 'Nessun elemento trovato');
@@ -423,7 +443,7 @@ class mainloop {
 
             return;
         }
-        if ($count > 40) {
+        if ($count > 30) {
             $this->reply($telegram, "Troppe risposte per il criterio scelto. Ti preghiamo di fare una ricerca più circoscritta");
 
             return;
@@ -432,7 +452,12 @@ class mainloop {
         $location = (1 == $count ? "Trovato 1 elemento" : "Trovati " . $count . " elementi");
         $this->reply($telegram, $location);
 
+        $elements = array();
+        $count = 0;
         foreach ($myContent as $v) {
+            $location = $this->resolveAddress($telegram, $v['Address']);
+            $elements[$count]['distance'] = distance($this->mylatitude, $this->mylongitude, $location['latitude'], $location['longitude']);
+
             $result = "\n";
             $result .= "N°: /id_" . $v["ID"] . "\n";
             $result .= "<b>Last update:</b> " . convertGjsonDateToString($v['update']) . "\n";
@@ -446,13 +471,27 @@ class mainloop {
             $result .= (isset($v['Address']) || (isset($v['lat']) && isset($v['lng']))) ? "<b>GetPosition:</b> /pos_" . $v['ID'] . "\n" : "";
             $result .= (isset($v['Description']) && $v['Description'] != "") ? "<b>Description:</b> " . $v['Description'] . "\n" : "";
             $result .= (isset($v['web']) && $v['web'] != "") ? "<b>URL:</b> " . $v['web'] . "\n" : "";
+            $result .= (isset($v['web']) && $v['web'] != "") ? "<b>URL:</b> " . $v['web'] . "\n" : "";
+            $result .= ($elements[$count]['distance'] != -1) ? "<b>Distance:</b> " . number_format($elements[$count]['distance'], 2, '.', '') . " km \n" : "";
             $result .= "_____________\n";
 
-            $homepage .= $result;
+            //$homepage .= $result;
+            $elements[$count]['object'] = $result;
+
             mylog($result);
+            $count++;
         }
 
-        $chunks = str_split($homepage, self::MAX_LENGTH);
+        mylog($elements);
+        sort($elements);
+        mylog("AFTER SORT:" . print_r($elements, TRUE));
+
+        $allMessage = "";
+        for ($i = 0; $i < $count; $i++) {
+            $allMessage .=$elements[$i]['object'];
+        }
+
+        $chunks = str_split($allMessage, self::MAX_LENGTH);
         foreach ($chunks as $chunk) {
             mylog("Chunk: " . $chunk);
             $this->reply($telegram, $chunk);
@@ -477,7 +516,7 @@ class mainloop {
 
         try {
             $myContent = parseGjson($json);
-            //    mylog(print_r($myContent, TRUE));
+//    mylog(print_r($myContent, TRUE));
         } catch (Exception $e) {
             echo 'Caught exception: ', $e->getMessage(), "\n";
             $this->reply($telegram, 'Nessun elemento trovato');
@@ -519,7 +558,22 @@ class mainloop {
         }
     }
 
-    function resolveAddress($telegram, $address) {
+    /**
+     * Use the google API to resolve an address to coordinates
+     * @param type $telegram
+     * @param type $address
+     * @param boolean TRUE or FALSE
+     * @return array actually the point of the position with lat and long $point = array(
+      'latitude' => 0,
+      'longitude' => 0
+      );
+     */
+    function resolveAddress($telegram, $address, $sendAddress = FALSE) {
+        $point = array(
+            'latitude' => -1,
+            'longitude' => -1
+        );
+
         try {
             if (isset($address) && $address != "") {
                 $urlDecoder = "https://maps.googleapis.com/maps/api/geocode/json?";
@@ -527,25 +581,35 @@ class mainloop {
                 $urlDecoder .= rawurlencode($address);
                 $json = json_decode(file_get_contents($urlDecoder), TRUE);
 
-                $venue = array(
-                    'chat_id' => $this->chat_id,
+                if (!isset($json['results'][0]['geometry']['location']['lat']) ||
+                        !isset($json['results'][0]['geometry']['location']['lng'])) {
+                    return;
+                }
+                $point = array(
                     'latitude' => $json['results'][0]['geometry']['location']['lat'],
                     'longitude' => $json['results'][0]['geometry']['location']['lng'],
-                    'title' => "Address",
-                    'address' => $address
                 );
-                mylog("latitude => " . $json['results'][0]['geometry']['location']['lat'] . ",
-                                longitude => " . $json['results'][0]['geometry']['location']['lng'] . ",
-                                title => Address,
-                                address => " . $address
-                );
-                $telegram->sendVenue($venue);
+
+                if ($sendAddress) {
+                    $venue = array(
+                        'chat_id' => $this->chat_id,
+                        'latitude' => $point['latitude'],
+                        'longitude' => $point['longitude'],
+                        'title' => "Address",
+                        'address' => $address
+                    );
+
+                    mylog($venue, LOGDEBUG);
+                    $telegram->sendVenue($venue);
+                }
             }
         } catch (Exception $e) {
             mylog("Exception: " . $e);
             mylog("Impossibile recuperare l'indirizzo corretto");
             $this->reply($telegram, "Impossibile recuperare l'indirizzo corretto");
         }
+
+        return $point;
     }
 
     function sendPosition($telegram) {
@@ -557,17 +621,17 @@ class mainloop {
         $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20A%20%3D%20";
         $urlgd .= rawurlencode("SELECT * WHERE " . ID . " = ");
         $urlgd .= $text;
-        //$urlgd .= rawurlencode(" AND " . lat . " IS NOT NULL AND " . lng . " IS NOT NULL ");
+//$urlgd .= rawurlencode(" AND " . lat . " IS NOT NULL AND " . lng . " IS NOT NULL ");
         $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
         $inizio = 1;
         $homepage = "";
 
         $json = file_get_contents($urlgd);
-        //mylog(print_r($json, TRUE));
+//mylog(print_r($json, TRUE));
 
         try {
             $myContent = parseGjson($json);
-            // mylog(print_r($myContent, TRUE));
+// mylog(print_r($myContent, TRUE));
         } catch (Exception $e) {
             echo 'Caught exception: ', $e->getMessage(), "\n";
             $this->reply($telegram, 'Impossibile trovare la posizione');
@@ -582,14 +646,15 @@ class mainloop {
             return;
         }
 
-        $this->resolveAddress($telegram, $myContent[0]['Address']);
+        $this->resolveAddress($telegram, $myContent[0]['Address'], TRUE);
     }
 
-    // Crea la tastiera
+// Crea la tastiera
     function update_mess($telegram) {
-        $option = array(array($telegram->buildKeyboardButton("Invia la tua posizione / send your location", false, true)) //this work
+        $option = array(array($telegram->buildKeyboardButton("Invia la tua posizione / send your location", false, true)),
+            array($telegram->buildKeyboardButton("Disabilita posizione / disable your location", false, false)) //this work
         );
-        // Create a permanent custom keyboard
+// Create a permanent custom keyboard
         $keyb = $telegram->buildKeyBoard($option, $onetime = true);
         $content = array(
             'chat_id' => $this->chat_id,
@@ -598,98 +663,124 @@ class mainloop {
         $telegram->sendMessage($content);
     }
 
+    function location_manager($telegram, $user_id, $chat_id, $location) {
+        $lng = $location["longitude"];
+        $lat = $location["latitude"];
+
+//rispondo
+        $response = $telegram->getData();
+        $bot_request_message_id = $response["message"]["message_id"];
+
+//nascondo la tastiera e forzo l'utente a darmi una risposta
+        $forcehide = $telegram->buildForceReply(true);
+
+//chiedo cosa sta accadendo nel luogo
+        $content = array('chat_id' => $chat_id, 'text' => "[Cosa vuoi cercare?]", 'reply_markup' => $forcehide, 'reply_to_message_id' => $bot_request_message_id);
+        $bot_request_message = $telegram->sendMessage($content);
+
+//memorizzare nel DB
+        $obj = json_decode($bot_request_message);
+        mylog($obj);
+//        $id = $obj->result;
+//        $id = $id->message_id;
+//        //print_r($id);
+//        $statement = "INSERT INTO " . DB_TABLE_GEO . " (lat,lng,user,text,bot_request_message) VALUES ('" . $lat . "','" . $lng . "','" . $user_id . "',' ','" . $id . "')";
+//        $db->exec($statement);
+    }
+
     /*
-      function location_manager($telegram,$user_id,$chat_id,$location)
-      {
+      function location_manager($telegram, $user_id, $chat_id, $location) {
 
-      $lon=$location["longitude"];
-      $lat=$location["latitude"];
-      $response=$telegram->getData();
-      $response=str_replace(" ","%20",$response);
+      $lon = $location["longitude"];
+      $lat = $location["latitude"];
+      $response = $telegram->getData();
+      $response = str_replace(" ", "%20", $response);
 
-      $reply="http://nominatim.openstreetmap.org/reverse?email=piersoft2@gmail.com&format=json&lat=".$lat."&lon=".$lon."&zoom=18&addressdetails=1";
+      $reply = "http://nominatim.openstreetmap.org/reverse?email=piersoft2@gmail.com&format=json&lat=" . $lat . "&lon=" . $lon . "&zoom=18&addressdetails=1";
       $json_string = file_get_contents($reply);
       $parsed_json = json_decode($json_string);
       //var_dump($parsed_json);
-      $comune="";
-      $temp_c1 =$parsed_json->{'display_name'};
+      $comune = "";
+      $temp_c1 = $parsed_json->{'display_name'};
 
 
       if ($parsed_json->{'address'}->{'town'}) {
-      $temp_c1 .="\nCittà: ".$parsed_json->{'address'}->{'town'};
+      $temp_c1 .="\nCittà: " . $parsed_json->{'address'}->{'town'};
       $comune .=$parsed_json->{'address'}->{'town'};
-      }else 	$comune .=$parsed_json->{'address'}->{'city'};
+      } else
+      $comune .=$parsed_json->{'address'}->{'city'};
 
-      if ($parsed_json->{'address'}->{'village'}) $comune .=$parsed_json->{'address'}->{'village'};
-      $location="Comune di: ".$comune." tramite le coordinate che hai inviato: ".$lat.",".$lon;
-      $content = array('chat_id' => $chat_id, 'text' => $location,'disable_web_page_preview'=>true);
+      if ($parsed_json->{'address'}->{'village'})
+      $comune .=$parsed_json->{'address'}->{'village'};
+      $location = "Comune di: " . $comune . " tramite le coordinate che hai inviato: " . $lat . "," . $lon;
+      $content = array('chat_id' => $chat_id, 'text' => $location, 'disable_web_page_preview' => true);
       $telegram->sendMessage($content);
 
-      $alert="";
+      $alert = "";
       //echo $comune;
-      $urlgd  ="https://spreadsheets.google.com/tq?tqx=out:csv&tq=SELECT%20%2A%20WHERE%20upper(A)%20LIKE%20%27%25";
+      $urlgd = "https://spreadsheets.google.com/tq?tqx=out:csv&tq=SELECT%20%2A%20WHERE%20upper(A)%20LIKE%20%27%25";
       $urlgd .= rawurlencode("SELECT * WHERE upper(A) LIKE '%");
       $urlgd .= strtoupper($comune);
       $urlgd .= rawurlencode("%'");
 
-      $urlgd .="&key=".GDRIVEKEY."&gid=".GDRIVEGID3;
+      $urlgd .="&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID3;
 
-      sleep (1);
+      sleep(1);
 
-      $inizio=1;
-      $homepage ="";
+      $inizio = 1;
+      $homepage = "";
       //$comune="Lecce";
-
       //echo $urlgd;
-      $csv = array_map('str_getcsv',file($urlgd));
+      $csv = array_map('str_getcsv', file($urlgd));
       //var_dump($csv[1][0]);
       $count = 0;
-      foreach($csv as $data=>$csv1){
-      $count = $count+1;
+      foreach ($csv as $data => $csv1) {
+      $count = $count + 1;
       }
-      if ($count ==0 || $count ==1){
-      $location="Nessun risultato trovato";
-      $content = array('chat_id' => $chat_id, 'text' => $location,'disable_web_page_preview'=>true);
+      if ($count == 0 || $count == 1) {
+      $location = "Nessun risultato trovato";
+      $content = array('chat_id' => $chat_id, 'text' => $location, 'disable_web_page_preview' => true);
       $telegram->sendMessage($content);
       }
+
       function decode_entities($text) {
 
-      $text=htmlentities($text, ENT_COMPAT,'ISO-8859-1', true);
-      $text= preg_replace('/&#(\d+);/me',"chr(\\1)",$text); #decimal notation
-      $text= preg_replace('/&#x([a-f0-9]+);/mei',"chr(0x\\1)",$text);  #hex notation
-      $text= html_entity_decode($text,ENT_COMPAT,"UTF-8"); #NOTE: UTF-8 does not work!
+      $text = htmlentities($text, ENT_COMPAT, 'ISO-8859-1', true);
+      $text = preg_replace('/&#(\d+);/me', "chr(\\1)", $text); #decimal notation
+      $text = preg_replace('/&#x([a-f0-9]+);/mei', "chr(0x\\1)", $text);  #hex notation
+      $text = html_entity_decode($text, ENT_COMPAT, "UTF-8"); #NOTE: UTF-8 does not work!
       return $text;
       }
+
       //echo $count;
       //  $count=3;
-      for ($i=$inizio;$i<$count;$i++){
+      for ($i = $inizio; $i < $count; $i++) {
 
       $homepage .="\n";
-      $homepage .="Comune: ".$csv[$i][0]."\n";
-      $homepage .="Indirizzo: ".$csv[$i][1]."\n";
-      $homepage .="CAP: ".$csv[$i][2]."\n";
-      if($csv[$i][3] !=NULL)	$homepage .="Segretario/Referente: ".$csv[$i][3]."\n";
-      if($csv[$i][4] !=NULL) $homepage .="Tel: ".$csv[$i][4]."\n";
-      if($csv[$i][5] !=NULL)$homepage .="Email: ".$csv[$i][5]."\n";
-      if($csv[$i][6] !=NULL){
-      $homepage .= "http://www.openstreetmap.org/?mlat=".$csv[$i][6]."&mlon=".$csv[$i][7]."#map=19/".$csv[$i][6]."/".$csv[$i][7]."/".$_POST['qrname'];
+      $homepage .="Comune: " . $csv[$i][0] . "\n";
+      $homepage .="Indirizzo: " . $csv[$i][1] . "\n";
+      $homepage .="CAP: " . $csv[$i][2] . "\n";
+      if ($csv[$i][3] != NULL)
+      $homepage .="Segretario/Referente: " . $csv[$i][3] . "\n";
+      if ($csv[$i][4] != NULL)
+      $homepage .="Tel: " . $csv[$i][4] . "\n";
+      if ($csv[$i][5] != NULL)
+      $homepage .="Email: " . $csv[$i][5] . "\n";
+      if ($csv[$i][6] != NULL) {
+      $homepage .= "http://www.openstreetmap.org/?mlat=" . $csv[$i][6] . "&mlon=" . $csv[$i][7] . "#map=19/" . $csv[$i][6] . "/" . $csv[$i][7] . "/" . $_POST['qrname'];
       }
       $homepage .="\n____________\n";
-
       }
 
       //}
-
       //	echo $alert;
 
       $chunks = str_split($homepage, self::MAX_LENGTH);
-      foreach($chunks as $chunk) {
-      $content = array('chat_id' => $chat_id, 'text' => $chunk,'disable_web_page_preview'=>true);
+      foreach ($chunks as $chunk) {
+      $content = array('chat_id' => $chat_id, 'text' => $chunk, 'disable_web_page_preview' => true);
       $telegram->sendMessage($content);
-
       }
-      $this->create_keyboard_temp($telegram,$chat_id);
-
+      $this->create_keyboard_temp($telegram, $chat_id);
       }
      */
 }

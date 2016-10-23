@@ -104,4 +104,68 @@ function parseGjson($data) {
     mylog(print_r($result, TRUE), LOGDEBUG);
     return $result;
 }
+
+/* :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: */
+/* ::                                                                         : */
+/* ::  This routine calculates the distance between two points (given the     : */
+/* ::  latitude/longitude of those points). It is being used to calculate     : */
+/* ::  the distance between two locations using GeoDataSource(TM) Products    : */
+/* ::                                                                         : */
+/* ::  Definitions:                                                           : */
+/* ::    South latitudes are negative, east longitudes are positive           : */
+/* ::                                                                         : */
+/* ::  Passed to function:                                                    : */
+/* ::    lat1, lon1 = Latitude and Longitude of point 1 (in decimal degrees)  : */
+/* ::    lat2, lon2 = Latitude and Longitude of point 2 (in decimal degrees)  : */
+/* ::    unit = the unit you desire for results                               : */
+/* ::           where: 'M' is statute miles (default)                         : */
+/* ::                  'K' is kilometers                                      : */
+/* ::                  'N' is nautical miles                                  : */
+/* ::  Worldwide cities and other features databases with latitude longitude  : */
+/* ::  are available at http://www.geodatasource.com                          : */
+/* ::                                                                         : */
+/* ::  For enquiries, please contact sales@geodatasource.com                  : */
+/* ::                                                                         : */
+/* ::  Official Web site: http://www.geodatasource.com                        : */
+/* ::                                                                         : */
+/* ::         GeoDataSource.com (C) All Rights Reserved 2015		   		     : */
+/* ::                                                                         : */
+/* :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: */
+
+/**
+ * 
+ * @param type $lat1 the latitude of first point
+ * @param type $lon1 the longitude of first point
+ * @param type $lat2 the latitude of second point
+ * @param type $lon2 the longitude of second point
+ * @param type $unit the unit of distance: M for miles, K for kilometer and N for nautical miles
+ * @return type
+ */
+function distance($lat1, $lon1, $lat2, $lon2, $unit = 'K') {
+
+    $result = -1;
+    if(!isset($lat1) || !isset($lon1) || !isset($lat2) || !isset($lon2) || $lat2 == -1 || $lon2 == -1){
+        return $result;
+    }
+    
+    $theta = $lon1 - $lon2;
+    $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
+    $dist = acos($dist);
+    $dist = rad2deg($dist);
+    $miles = $dist * 60 * 1.1515;
+    $unit = strtoupper($unit);
+
+    if ($unit == "K") {
+        return ($miles * 1.609344);
+    } else if ($unit == "N") {
+        return ($miles * 0.8684);
+    } else {
+        return $miles;
+    }
+}
+
+//
+//echo distance(32.9697, -96.80322, 29.46786, -98.53506, "M") . " Miles<br>";
+//echo distance(32.9697, -96.80322, 29.46786, -98.53506, "K") . " Kilometers<br>";
+//echo distance(32.9697, -96.80322, 29.46786, -98.53506, "N") . " Nautical Miles<br>";
 ?>
