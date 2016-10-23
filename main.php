@@ -56,16 +56,22 @@ class mainloop {
 //gestisce l'interfaccia utente
     function shell($telegram) {
         date_default_timezone_set('Europe/Rome');
-//$today = date("Y-m-d H:i:s");
-        // $log = "TEXT: $this->text, CHATID: $this->chat_id, USERID: $this->user_id, LOCATION: " . print_r($this->location, TRUE);
-        // mylog($log);
+
         // check if a position has been given
         if (isset($this->location)) {
+            $lat = 41.86265535999481;
+            $lon = 12.485689999302197;
             //prelevo dati da OSM sulla base della mia posizione
-            $osm_data=give_osm_data($this->location['latitude'],$this->location['longitude']);
-            
+            $osm_data = give_osm_data($this->location['latitude'], $this->location['longitude']);
+            $this->create_keyboard_temp($telegram);
+//            $osm_data = give_osm_data($lat, $lon);
         }
         if ($this->text == "online") {
+            $lat = 41.86265535999481;
+            $lon = 12.485689999302197;
+            //prelevo dati da OSM sulla base della mia posizione
+            $osm_data = give_osm_data($lat, $lon);
+
             mylog("Hai selezionato online");
             try {
 
@@ -73,17 +79,19 @@ class mainloop {
                     ['text' => 'numero', 'callback_data' => 'getNumber']
                 ];
 
-                $this->create_inline_keyboard($telegram,  "recupera",  $inline_keyboard);
+                $this->create_inline_keyboard($telegram, "recupera", $inline_keyboard);
             } catch (Exception $e) {
                 mylog("Error: " . $e->getMessage(), LOGERROR);
             }
+        } elseif ($this->text == "Posizione/Position") {
+            $this->update_mess($telegram);
         }
 //first message
         elseif ($this->text == "/start" || $this->text == "Informazioni") {
             $this->sendInformazioni($telegram);
         }
 // send the help message
-        elseif ($this->text == "/help" || $this->text == "Ricerca") {
+        elseif ($this->text == "/help" || $this->text == "Help") {
             $this->sendHelp($telegram);
         } elseif ($this->location != null) {
 //	$this->location_manager($telegram,$user_id,$chat_id,$location);
@@ -99,7 +107,7 @@ class mainloop {
         }
 //elseif (strpos($this->text, '/') === false) {
 // the following word after ? is the key for the search
-        elseif (preg_match('/^\/s /', $this->text)) {
+        elseif (preg_match('/^\/s /', $this->text) || "Pizzerie" == $this->text) {
             $this->sendListResult($telegram);
         }
 // if "PAROLE CHIAVE" is provided, a list with all keys and number of are sent
@@ -219,7 +227,7 @@ class mainloop {
     }
 
     function create_keyboard_temp($telegram) {
-        $option = array(["KEYWORDS", "Ricerca"]);
+        $option = array(["KEYWORDS", "Pizzerie"], ["Help", "Posizione/Position"]);
         $keyb = $telegram->buildKeyBoard($option, $onetime = false);
         $content = array(
             'chat_id' => $this->chat_id,
@@ -307,20 +315,14 @@ class mainloop {
     }
 
     function sendInformazioni($telegram) {
-        $img = curl_file_create('logo.png', 'image/png');
+        $img = curl_file_create(LOGO, 'image/png');
         $contentp = array(
             'chat_id' => $this->chat_id,
             'photo' => $img
         );
         $telegram->sendPhoto($contentp);
 
-        $msg = "Benvenuto. Questo è un servizio automatico (bot da Robot) di " . NAME . ". "
-                . "Puoi ricercare gli argomenti per parola chiave anteponendo il carattere ?, "
-                . "oppure cliccare su FAQ per avere l'elenco delle FAQ predefinite "
-                . "e quindi fare una ricerca per numero domanda corrispondente. "
-                . "In qualsiasi momento scrivendo /start ti ripeterò questo messaggio di benvenuto.\n"
-                . "Questo bot è stato realizzato da @pagaia per Italiani a Bruxelles. "
-                . "Il progetto e il codice sorgente sono liberamente riutilizzabili con licenza MIT.";
+        $msg = WELCOME;
 
         $this->reply($telegram, $msg);
         mylog("new chat started with " . $this->chat_id);
@@ -348,7 +350,7 @@ class mainloop {
         $this->reply($telegram, "Ecco la lista delle Keywords disponibili:\n");
 
         $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20A%20IS%20NOT%20NULL";
-        $urlgd .= rawurlencode("SELECT " . Key . ", count(" . ID . ") WHERE " . ID . " IS NOT NULL group by " . Key . " ");
+        $urlgd .= rawurlencode("SELECT " . Key . ", count(" . ID . ") WHERE " . ID . " IS NOT NULL group by " . Key . "  ORDER BY count(" . ID . ") DESC ");
         $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
 
 
@@ -386,7 +388,7 @@ class mainloop {
     }
 
     function sendListResult($telegram) {
-        $text = substr($this->text, 3);
+        $text = (preg_match('/^\/s /', $this->text) ) ? substr($this->text, 3) : $this->text;
 
         $this->reply($telegram, "Sto cercando argomenti con parola chiave: " . $text);
 
@@ -452,6 +454,7 @@ class mainloop {
 
         $chunks = str_split($homepage, self::MAX_LENGTH);
         foreach ($chunks as $chunk) {
+            mylog("Chunk: " . $chunk);
             $this->reply($telegram, $chunk);
         }
     }
@@ -580,6 +583,19 @@ class mainloop {
         }
 
         $this->resolveAddress($telegram, $myContent[0]['Address']);
+    }
+
+    // Crea la tastiera
+    function update_mess($telegram) {
+        $option = array(array($telegram->buildKeyboardButton("Invia la tua posizione / send your location", false, true)) //this work
+        );
+        // Create a permanent custom keyboard
+        $keyb = $telegram->buildKeyBoard($option, $onetime = true);
+        $content = array(
+            'chat_id' => $this->chat_id,
+            'reply_markup' => $keyb,
+            'text' => "Attiva la localizzazione sul tuo smartphone / Turn on your GPS");
+        $telegram->sendMessage($content);
     }
 
     /*

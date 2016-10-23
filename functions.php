@@ -46,6 +46,7 @@ function convertGjsonDateToString($gdate) {
 
 function parseGjson($data) {
 
+    mylog($data, LOGDEBUG);
     $data = substr($data, strpos($data, "{"));
     $data = substr($data, 0, -2);
     $contentArr = json_decode($data, true);
