@@ -145,6 +145,7 @@ function distance($lat1, $lon1, $lat2, $lon2, $unit = 'K') {
 
     $result = -1;
     if(!isset($lat1) || !isset($lon1) || !isset($lat2) || !isset($lon2) || $lat2 == -1 || $lon2 == -1){
+        mylog('$lat1, $lon1, $lat2, $lon2' . "$lat1, $lon1, $lat2, $lon2");
         return $result;
     }
     
