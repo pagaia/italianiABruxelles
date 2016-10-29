@@ -2,11 +2,11 @@
 
 class User implements MongoDB\BSON\Persistable {
 
-    private $id;
-    private $user;
-    private $tgUserId;
-    private $location;
-    private $createdAt;
+    public $id;
+    public $user;
+    public $tgUserId;
+    public $location;
+    public $createdAt;
 
     public function __construct($tgUserId, $user) {
         $this->id = new MongoDB\BSON\ObjectID;
@@ -24,6 +24,7 @@ class User implements MongoDB\BSON\Persistable {
             '_id' => $this->id,
             'user' => $this->user,
             'tgUserId' => $this->tgUserId,
+            'location' => $this->location,
             'createdAt' => $this->createdAt,
         ];
     }
@@ -32,11 +33,16 @@ class User implements MongoDB\BSON\Persistable {
         $this->id = $data['_id'];
         $this->user = $data['user'];
         $this->tgUserId = $data['tgUserId'];
+        $this->location = $data['location'];
         $this->createdAt = $data['createdAt'];
     }
 
-    function addLocation($location) {
+    public function addLocation(array $location) {
         $this->location = $location;
+    }
+
+    public function getLocation() {
+        return $this->location;
     }
 
 }
