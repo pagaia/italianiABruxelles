@@ -142,14 +142,14 @@ function parseGjson($data) {
  * @param type $unit the unit of distance: M for miles, K for kilometer and N for nautical miles
  * @return type
  */
-function distance($lat1, $lon1, $lat2, $lon2, $unit = 'K') {
+function distance($lat1 = -1, $lon1, $lat2, $lon2, $unit = 'K') {
 
     $result = -1;
-    if(!isset($lat1) || !isset($lon1) || !isset($lat2) || !isset($lon2) || $lat2 == -1 || $lon2 == -1){
-        mylog('$lat1, $lon1, $lat2, $lon2' . "$lat1, $lon1, $lat2, $lon2");
+    mylog('Calculating distance ($lat1, $lon1) and ($lat2, $lon2): ' . "($lat1, $lon1), ($lat2, $lon2)");
+    if (!isset($lat1) || !isset($lon1) || !isset($lat2) || !isset($lon2) || $lat1 == -1 || $lon1 == -1 || $lat2 == -1 || $lon2 == -1) {
         return $result;
     }
-    
+
     $theta = $lon1 - $lon2;
     $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
     $dist = acos($dist);

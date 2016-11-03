@@ -60,22 +60,31 @@ class mainloop {
         mylog("Location: " . print_r($this->location, TRUE));
         mylog("Reply to message: " . print_r($this->reply_to_msg, TRUE));
 
+        $access = (new MongoDB\Client)->IaBxL->access;
+        $access->insertOne([
+            'user_id' => $this->user_id,
+            'date' => date('m/d/Y H:i:s', time()),
+            'username' => $this->username,
+            'name' => $this->firstName . " " . $this->lastName,
+            'msg' => $this->text,
+            'location' => $this->location
+        ]);
 
         $this->user = new User($this->user_id, $update["message"]["from"]);
         $this->collection = (new MongoDB\Client)->IaBxL->users;
-        $access = (new MongoDB\Client)->IaBxL->access;
-        
+
+        // search the user from the DB
         $user = $this->collection->findOne(['tgUserId' => $this->user_id]);
-        $access->insertOne(['user_id' => $this->user_id, 'date' => date('m/d/Y h:i:s a', time())]);
+
+
         if (!$user) {
             mylog("Inserting a new user");
             $this->user = $this->collection->insertOne($this->user);
-
         } else {
             mylog("Getting the user user");
-            
-            $this->user = $this->collection->findOne(['tgUserId' => $this->user_id]);
-        //    mylog("USER: " . print_r($this->user, TRUE));
+
+            $this->user = $user; //$this->collection->findOne(['tgUserId' => $this->user_id]);
+            mylog("USER: " . print_r($this->user, TRUE), LOGDEBUG);
         }
 
         $this->shell($telegram);
@@ -102,19 +111,11 @@ class mainloop {
         } elseif ($this->reply_to_msg != null) {
 
             $this->collection = $this->collection->findOne(['tgUserId' => $this->user_id]);
-           // mylog("Found User: " . print_r($this->collection, TRUE));
+            // mylog("Found User: " . print_r($this->collection, TRUE));
             $this->location = $this->collection->user->location;
 
-          //  $this->reply($telegram, "This is your location: " . print_r($this->collection->location, TRUE));
-            //mylog($this->location);
-//            $reply = "Segnalazione Registrata. Grazie!";
-//            $content = array('chat_id' => $this->chat_id, 'text' => $reply);
-//            $telegram->sendMessage($content);
             $this->sendListResult($telegram);
             $this->create_keyboard_temp($telegram);
-            // $this->create_keyboard_temp($telegram);
-//aggiorno dati mappa
-// exec('sqlite3 -header -csv db.sqlite "select * from segnalazioni;" > map_data.csv');
         } elseif ($this->text == "online") {
             $lat = 41.86265535999481;
             $lon = 12.485689999302197;
@@ -125,15 +126,16 @@ class mainloop {
             try {
 
                 $inline_keyboard = [
-                        ['text' => 'numero', 'callback_data' => 'getNumber']
+                    ['text' => 'numero', 'callback_data' => 'getNumber']
                 ];
 
                 $this->create_inline_keyboard($telegram, "recupera", $inline_keyboard);
             } catch (Exception $e) {
                 mylog("Error: " . $e->getMessage(), LOGERROR);
             }
-//        } elseif ($this->text == "Posizione/Position") {
-//            $this->update_mess($telegram);
+        } elseif ($this->text == "Posizione/Position") {
+            //  $this->update_mess($telegram);
+            $this->reply($telegram, "Per fare ricerche geo-referenziate invia prima la tua posizione selezionando la graffetta (📎) e poi posizione");
         }
 //first message
         elseif ($this->text == "/start" || $this->text == "Informazioni") {
@@ -262,10 +264,10 @@ class mainloop {
      * url: the url to use for the button
      */
     function create_inline_keyboard($telegram, $msg, array $option) {
-        mylog(print_r($option, TRUE),LOGDEBUG);
+        mylog(print_r($option, TRUE), LOGDEBUG);
 
         $keyb = json_encode(['inline_keyboard' => [$option]]);
-        mylog($keyb,LOGDEBUG);
+        mylog($keyb, LOGDEBUG);
         $content = array(
             'chat_id' => $this->chat_id,
             'reply_markup' => $keyb,
@@ -276,7 +278,7 @@ class mainloop {
     }
 
     function create_keyboard_temp($telegram) {
-        $option = array(["KEYWORDS", "Pizzerie"], ["Help"]);
+        $option = array(["KEYWORDS", "Pizzerie"], ["Help", "Posizione/Position"]);
         $keyb = $telegram->buildKeyBoard($option, $onetime = false);
         $content = array(
             'chat_id' => $this->chat_id,
@@ -317,11 +319,11 @@ class mainloop {
         $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20A%20%3D%20";
         $urlgd .= rawurlencode("SELECT * WHERE " . ID . " = ");
         $urlgd .= $this->text;
-        $urlgd .= rawurlencode(" ");
         $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
         $inizio = 1;
         $res = "";
 
+        mylog("URL: " . $urlgd);
         $json = file_get_contents($urlgd);
 
 
@@ -347,8 +349,8 @@ class mainloop {
         }
 
         $phoneN = ( isset($myContent[0]['Mobile1']) ? $myContent[0]['Mobile1'] :
-                (isset($myContent[0]['Phone']) ? $myContent[0]['Phone'] :
-                (isset($myContent[0]['Mobile2']) ? $myContent[0]['Mobile2'] : "")));
+                        (isset($myContent[0]['Phone']) ? $myContent[0]['Phone'] :
+                                (isset($myContent[0]['Mobile2']) ? $myContent[0]['Mobile2'] : "")));
 
         $chunks = str_split($res, self::MAX_LENGTH);
         foreach ($chunks as $chunk) {
@@ -377,6 +379,7 @@ class mainloop {
         mylog("new chat started with " . $this->chat_id);
         $this->create_keyboard_temp($telegram);
 
+        mylog("Che succede!!: " . $this->chat_id);
         return;
     }
 
@@ -439,10 +442,11 @@ class mainloop {
 //        
 //        $this->countElements($telegram, $query);
         $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20A%20IS%20NOT%20NULL";
-        $urlgd .= rawurlencode("SELECT " . Key . ", count(" . ID . ") WHERE " . ID . " IS NOT NULL group by " . Key . "  ORDER BY count(" . ID . ") DESC ");
+        $urlgd .= rawurlencode("SELECT " . Key . ", count(" . ID . ") WHERE " . ID . " IS NOT NULL group by " . Key . "  ORDER BY count(" . ID . ") DESC LIMIT " . MAX . " ");
         $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
 
 
+        mylog("URL: " . $urlgd);
         $inizio = 1;
         $res = "";
 //$comune="Lecce";
@@ -490,10 +494,12 @@ class mainloop {
         $urlgd .= rawurlencode(" OR upper(" . Email . ") contains '") . $text . rawurlencode("' ");
         $urlgd .= rawurlencode(" OR upper(" . Description . ") contains '") . $text . rawurlencode("' ");
         $urlgd .= rawurlencode(" OR upper(" . profession . ") contains '") . $text . rawurlencode("' ");
+        $urlgd .= rawurlencode(" LIMIT " . MAX);
 
         $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
         $homepage = "";
 
+        mylog("URL: " . $urlgd);
         $json = file_get_contents($urlgd);
 
         try {
@@ -512,13 +518,13 @@ class mainloop {
 
             return;
         }
-        if ($count > 30) {
+        if ($count > MAX) {
             $this->reply($telegram, "Troppe risposte per il criterio scelto. Ti preghiamo di fare una ricerca più circoscritta");
 
             return;
         }
 
-        $msg = (1 == $count ? "Trovato 1 elemento" : "Trovati " . $count . " elementi");
+        $msg = (1 == $count ? "Trovato 1 elemento" : "Trovati MAX " . $count . " elementi");
         $this->reply($telegram, $msg);
 
         $elements = array();
@@ -547,13 +553,13 @@ class mainloop {
             //$homepage .= $result;
             $elements[$count]['object'] = $result;
 
-           // mylog($result);
+            // mylog($result);
             $count++;
         }
 
-      //  mylog($elements);
+        //  mylog($elements);
         sort($elements);
-      //  mylog("AFTER SORT:" . print_r($elements, TRUE));
+        //  mylog("AFTER SORT:" . print_r($elements, TRUE));
 
         $allMessage = "";
         for ($i = 0; $i < $count; $i++) {
@@ -562,7 +568,7 @@ class mainloop {
 
         $chunks = str_split($allMessage, self::MAX_LENGTH);
         foreach ($chunks as $chunk) {
-            mylog("Chunk: " . $chunk,LOGDEBUG);
+            mylog("Chunk: " . $chunk, LOGDEBUG);
             $this->reply($telegram, $chunk);
         }
     }
@@ -570,15 +576,17 @@ class mainloop {
     function sendInfoByID($telegram) {
         $text = substr($this->text, 3);
 
-        $this->reply($telegram, "Sto cercando le informazionio per l'elemento N° " . $text);
+        $this->reply($telegram, "Sto cercando le informazioni per l'elemento N° " . $text);
 
         $text = str_replace(" ", "%20", $text);
         $text = strtoupper($text);
         $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20upper(C)%20contains%20%27";
         $urlgd .= rawurlencode("SELECT * WHERE " . ID . " = ");
-        $urlgd .= $text;
+        $urlgd .= rawurlencode($text . " LIMIT " . MAX);
+
         $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
 
+        mylog("URL: " . $urlgd);
         $homepage = "";
 
         $json = file_get_contents($urlgd);
@@ -616,7 +624,7 @@ class mainloop {
             $result .= "_____________\n";
 
             $homepage .= $result;
-            mylog($result,LOGDEBUG);
+            mylog($result, LOGDEBUG);
         }
 
 
@@ -674,7 +682,7 @@ class mainloop {
             }
         } catch (Exception $e) {
             mylog("Exception: " . $e, LOGERROR);
-            mylog("Impossibile recuperare l'indirizzo corretto",LOGWARN);
+            mylog("Impossibile recuperare l'indirizzo corretto", LOGWARN);
             $this->reply($telegram, "Impossibile recuperare l'indirizzo corretto");
         }
 
@@ -734,11 +742,11 @@ class mainloop {
 
     function location_manager($telegram) {
         $this->user->addLocation($this->location);
-        
+
         // save location into DB
 //        $result = $this->collection->updateOne(['tgUserId' => $this->user_id], $this->user);
         $result = $this->collection->updateMany(
-                ['tgUserId' => $this->user_id], ['$set' => ['location' =>  $this->location] ], ['upsert' => true]
+                ['tgUserId' => $this->user_id], ['$set' => ['location' => $this->location]], ['upsert' => true]
         );
 
 
@@ -747,9 +755,8 @@ class mainloop {
 //            );
 
         $this->user = $this->collection->findOne(['tgUserId' => $this->user_id]);
-    //    mylog("USER found: " . print_r($this->user, TRUE));
-    //    $this->reply($telegram, "You are the user: " . print_r($this->collection->findOne(['tgUserId' => $this->user_id]), TRUE));
-
+        //    mylog("USER found: " . print_r($this->user, TRUE));
+        //    $this->reply($telegram, "You are the user: " . print_r($this->collection->findOne(['tgUserId' => $this->user_id]), TRUE));
 //rispondo
         $response = $telegram->getData();
         $bot_request_message_id = $response["message"]["message_id"];
@@ -760,12 +767,12 @@ class mainloop {
 //chiedo cosa sta accadendo nel luogo
         $content = array('chat_id' => $this->chat_id, 'text' => "[Posizione ricevuta. Fai ora una ricerca]", 'reply_markup' => $forcehide, 'reply_to_message_id' => $bot_request_message_id);
 //        $content = array('chat_id' => $this->chat_id, 'text' => "[Cosa vuoi cercare?]", 'reply_markup' => $forcehide);
-    //    mylog("return response: " . print_r($content, TRUE),LOGDEBUG);
+        //    mylog("return response: " . print_r($content, TRUE),LOGDEBUG);
         $bot_request_message = $telegram->sendMessage($content);
 
 //memorizzare nel DB
-        $obj = json_decode($bot_request_message);
-    //    mylog("return response: " . print_r($obj, TRUE));
+        //   $obj = json_decode($bot_request_message);
+        //    mylog("return response: " . print_r($obj, TRUE));
 //        $id = $obj->result;
 //        $id = $id->message_id;
 //        //print_r($id);
