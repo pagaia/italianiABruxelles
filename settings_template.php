@@ -10,14 +10,29 @@ define('GDRIVEGID2', ''); // gid dell'eventuale altro foglio di calcolo per esem
 define('GDRIVEGID3', ''); // gid dell'eventuale altro foglio di calcolo per esempio sedi azienda/sindacato
 define('NAME', ''); // nome del Bot che appare nelle Informazioni /start
 define('FOLDERLOG', ''); // define the folder log for all logs
+define('GKEY', ''); // this Key is used to query the google API for geo search
 
-
+// LOG LEVEL definition
+define("LOGNULL", 0);
+define("LOGERROR", 1);
+define("LOGWARN", 2);
+define("LOGINFO", 3);
+define("LOGDEBUG", 4);
+define("LOGLEVEL", LOGINFO);
+define("WELCOME", "Benvenuto. Questo è un servizio automatico (bot da Robot) di " . NAME . ". "
+        . "Puoi ricercare gli argomenti per parola chiave anteponendo il carattere ?, "
+        . "oppure cliccare su KEYWORDS per avere la lista delle parole chiave. "
+        . "In qualsiasi momento scrivendo /start ti ripeterò questo messaggio di benvenuto.\n"
+        . "Questo bot è stato realizzato da @pagaia per il gruppo Facebook Italiani a Bruxelles modificando il progetto libreitalia di @piersoft . "
+        . "I dati presenti nel Database sono stati raccolti dai file presenti sul gruppo facebook Italiani a Bruxelles. "
+        . "Il progetto e il codice sorgente sono liberamente riutilizzabili con licenza MIT.");
+define("LOGO", "img/logo.png"); // constant for LOGO 
 
 // Your Openstreetmap Query settings
-define('AROUND', 1000);						//Number of meters to calculate radius to search
-define('MAX', 10);						//max number of points to search
+define('AROUND', 10000);      //Number of meters to calculate radius to search
+define('MAX', 20);      //max number of points to search
 //define('TAG','"emergency"="defibrillator"');			//tag to search accoring to Overpass_API Query Language
-define('TAG','"name"="Kit soccorso bici"');			//tag to search accoring to Overpass_API Query Language
+define('TAG', '"name"="Kit soccorso bici"');   //tag to search accoring to Overpass_API Query Language
 
 
 // Define the database fields for gdrive
