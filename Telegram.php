@@ -83,9 +83,17 @@ class Telegram {
         return $this->endpoint("sendChatAction", $content);
     }
 
-    public function setWebhook($url) {
+    public function setWebhook($url, $certificate = NULL) {
 
-        $content = array('url' => $url);
+        if (NULL != $certificate) {
+            $mimetype = mime_content_type($certificate);
+            $certificate = new CurlFile($certificate, $mimetype);
+            $content = array('url' => $url, 'certificate' => $certificate);
+        } else {
+            $content = array('url' => $url);
+        }
+
+        mylog($content);
         return $this->endpoint("setWebhook", $content);
     }
 
@@ -203,13 +211,13 @@ class Telegram {
             'inline_keyboard' => array(
                 array(
                     'text' => $option['text']
-                   // 'url' => $option['url']
-                   // 'callback_data' => $option['value']
-                   ),
+                // 'url' => $option['url']
+                // 'callback_data' => $option['value']
+                ),
                 array(
-                    'text' => $option['text'].'1'
-                   // 'url' => $option['url']
-                   // 'callback_data' => $option['value'].'1'
+                    'text' => $option['text'] . '1'
+                // 'url' => $option['url']
+                // 'callback_data' => $option['value'].'1'
                 )
         ));
         mylog($replyMarkup);
@@ -280,7 +288,7 @@ class Telegram {
         $this->data = $this->updates["result"][$update];
     }
 
-    private function sendAPIRequest($url, array $content, $post = true) {
+    public function sendAPIRequest($url, array $content, $post = true) {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_HEADER, false);
@@ -302,7 +310,7 @@ if (!function_exists('curl_file_create')) {
 
     function curl_file_create($filename, $mimetype = '', $postname = '') {
         return "@$filename;filename="
-                . ($postname ? : basename($filename))
+                . ($postname ?: basename($filename))
                 . ($mimetype ? ";type=$mimetype" : '');
     }
 

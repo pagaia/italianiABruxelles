@@ -4,6 +4,7 @@
 define('API', ''); // api google shortner eventuale per shot link
 define('TELEGRAM_BOT', ''); // token Telegram Bot *obbligatorio*
 define('BOT_WEBHOOK', ''); // url assoluto https per start.php
+define('CERTIFICATE', '');   // path assoluto per il certificato autofirmato
 define('GDRIVEKEY', ''); // key dello sheet di google drive
 define('GDRIVEGID1', ''); //gid del foglio di calcolo . di solito il primo gid=0 per esempio FAQ
 define('GDRIVEGID2', ''); // gid dell'eventuale altro foglio di calcolo per esempio foglio Risposte
@@ -23,10 +24,10 @@ define("WELCOME", "Benvenuto. Questo è un servizio automatico (bot da Robot) di
         . "Puoi ricercare gli argomenti per parola chiave anteponendo il carattere ?, "
         . "oppure cliccare su KEYWORDS per avere la lista delle parole chiave. "
         . "In qualsiasi momento scrivendo /start ti ripeterò questo messaggio di benvenuto.\n"
-        . "Questo bot è stato realizzato da @pagaia per il gruppo Facebook Italiani a Bruxelles modificando il progetto libreitalia di @piersoft . "
-        . "I dati presenti nel Database sono stati raccolti dai file presenti sul gruppo facebook Italiani a Bruxelles. "
-        . "Il progetto e il codice sorgente sono liberamente riutilizzabili con licenza MIT.");
-define("LOGO", "img/logo.png"); // constant for LOGO 
+        . "Questo bot è stato realizzato da @pagaia per il gruppo Facebook Italiani a Bruxelles. "
+        . "I dati presenti nel Database sono raccolti dai file del gruppo facebook Italiani a Bruxelles. "
+        . "L'autore non è responsabile dei contenuti. Il progetto, in fase sperimentale, ed il codice sorgente sono liberamente riutilizzabili con licenza MIT.");
+define("LOGO", "img/logo.png");
 
 // Your Openstreetmap Query settings
 define('AROUND', 10000);      //Number of meters to calculate radius to search

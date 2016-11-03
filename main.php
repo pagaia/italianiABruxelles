@@ -389,8 +389,8 @@ class mainloop {
                 . "/help - to show this menu\n"
                 . "/l - to list all the keywords\n"
                 . "? - to perform a search on all Database(e.g. ?doctor )\n"
-                . "/c #ID - to get the phone of the element identified by the #ID (e.g. /c 123)\n"
-                . "/p #ID - to get the position of the element identified by the #ID (e.g. /p 134)\n";
+                . "/id_#ID - to get the phone of the element identified by the #ID (e.g. /id_123)\n"
+                . "/pos_#ID - to get the position of the element identified by the #ID (e.g. /pos_134)\n";
 
         $this->reply($telegram, $helpMessage);
         $this->create_keyboard_temp($telegram);
@@ -524,7 +524,7 @@ class mainloop {
             return;
         }
 
-        $msg = (1 == $count ? "Trovato 1 elemento" : "Trovati MAX " . $count . " elementi");
+        $msg = (1 == $count ? "Trovato 1 elemento" : "Trovati " . $count . " elementi");
         $this->reply($telegram, $msg);
 
         $elements = array();
@@ -544,7 +544,6 @@ class mainloop {
             $result .= (isset($v['Mobile2']) && $v['Mobile2'] != "") ? "<b>Mobile2:</b> " . $v['Mobile2'] . "\n" : "";
             $result .= (isset($v['Address']) && $v['Address'] != "") ? "<b>Address:</b> " . $v['Address'] . "\n" : "";
             $result .= (isset($v['Description']) && $v['Description'] != "") ? "<b>Description:</b> " . $v['Description'] . "\n" : "";
-            $result .= (isset($v['web']) && $v['web'] != "") ? "<b>URL:</b> " . $v['web'] . "\n" : "";
             $result .= (isset($v['web']) && $v['web'] != "") ? "<b>URL:</b> " . $v['web'] . "\n" : "";
             $result .= ($elements[$count]['distance'] != -1) ? "<b>Distance:</b> " . number_format($elements[$count]['distance'], 2, '.', '') . " km \n" : "";
             $result .= (isset($v['Address']) || (isset($v['lat']) && isset($v['lng']))) ? "<b>GetPosition:</b> /pos_" . $v['ID'] . "\n" : "";
@@ -759,7 +758,7 @@ class mainloop {
         //    $this->reply($telegram, "You are the user: " . print_r($this->collection->findOne(['tgUserId' => $this->user_id]), TRUE));
 //rispondo
         $response = $telegram->getData();
-        $bot_request_message_id = $response["message"]["message_id"];
+            $bot_request_message_id = $response["message"]["message_id"];
 
 //nascondo la tastiera e forzo l'utente a darmi una risposta
         $forcehide = $telegram->buildForceReply(true);
