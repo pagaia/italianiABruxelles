@@ -450,7 +450,7 @@ class mainloop {
         $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
 
 
-        mylog("URL: " . $urlgd);
+        mylog("URL: " . $urlgd, LOGDEBUG);
         $inizio = 1;
         $res = "";
 //$comune="Lecce";
@@ -503,7 +503,7 @@ class mainloop {
         $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
         $homepage = "";
 
-        mylog("URL: " . $urlgd);
+        mylog("URL: " . $urlgd, LOGDEBUG);
         $json = file_get_contents($urlgd);
 
         try {
@@ -552,7 +552,7 @@ class mainloop {
             $result .= (isset($v['Mobile2']) && $v['Mobile2'] != "") ? "&#128244;: " . $v['Mobile2'] . "\n" : "";
             $result .= (isset($v['Address']) && $v['Address'] != "") ? "<b>Address:</b> " . $v['Address'] . "\n" : "";
             $result .= (isset($v['Description']) && $v['Description'] != "") ? "<b>Description:</b> " . $v['Description'] . "\n" : "";
-            $result .= (isset($v['web']) && $v['web'] != "") ? "&#128187;: " . $v['web'] . "\n" : "";
+            $result .= (isset($v['web']) && $v['web'] != "") ? " &#128187;: " . $v['web'] . "\n" : "";
             $result .= ($elements[$count]['distance'] != -1) ? "<b>Distance:</b> " . number_format($elements[$count]['distance'], 2, '.', '') . " km \n" : "";
             $result .= (isset($v['Address']) || (isset($v['lat']) && isset($v['lng']))) ? "<b>GetPosition:</b> /pos_" . $v['ID'] . "\n" : "";
             $result .= "_____________\n";

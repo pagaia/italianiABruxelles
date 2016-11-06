@@ -41,7 +41,7 @@ function mylog($text, $level = LOGINFO) {
 
 function convertGjsonDateToString($gdate) {
     $matches = array();
-    mylog("Date conversion: $gdate");
+    mylog("Date conversion: $gdate", LOGDEBUG);
     preg_match('/(\d{4}),(\d{1,2}),(\d{1,2}),(\d{1,2}),(\d{1,2}),(\d{1,2})/', $gdate, $matches);
     return sprintf('%04d', $matches[1]) . "/" . sprintf('%02d', $matches[2]) . "/" . sprintf('%02d', $matches[3]) . " " . sprintf('%02d', $matches[4]) . ":" . sprintf('%02d', $matches[5]);
 }
