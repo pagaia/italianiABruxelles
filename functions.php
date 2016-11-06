@@ -2,7 +2,7 @@
 
 /**
  * This function log the data into a file defined into the settings_t.php
- * @param text $text The informationt log
+ * @param text $text The information log
  * @param integer $level Define the level of debug
  * 1=ERROR
  * 2=WARN
@@ -35,14 +35,15 @@ function mylog($text, $level = LOGINFO) {
 
         //$log .= (is_array($text) ? print_r($text, TRUE) : $text) . "\n";
         $log .= print_r($text, TRUE) . "\n";
-        file_put_contents(FOLDERLOG . '/italianiAbruxelles_' . date("j.n.Y") . '.log', $log, FILE_APPEND);
+        file_put_contents(FOLDERLOG . '/'.LOGFILE.'_' . date("j.n.Y") . '.log', $log, FILE_APPEND);
     }
 }
 
 function convertGjsonDateToString($gdate) {
     $matches = array();
+    mylog("Date conversion: $gdate");
     preg_match('/(\d{4}),(\d{1,2}),(\d{1,2}),(\d{1,2}),(\d{1,2}),(\d{1,2})/', $gdate, $matches);
-    return $matches[1] . "/" . $matches[2] . "/" . $matches[3] . " " . $matches[4] . ":" . $matches[5] . ":" . $matches[6];
+    return sprintf('%04d', $matches[1]) . "/" . sprintf('%02d', $matches[2]) . "/" . sprintf('%02d', $matches[3]) . " " . sprintf('%02d', $matches[4]) . ":" . sprintf('%02d', $matches[5]);
 }
 
 function parseGjson($data) {
@@ -65,7 +66,7 @@ function parseGjson($data) {
 
     mylog("Foreach columns", LOGDEBUG);
     foreach ($contentArr['table']['cols'] as $columnidx) {
-        array_push($columns, $columnidx['label']);
+        array_push($columns, trim($columnidx['label']));
         mylog(print_r($columnidx, TRUE), LOGDEBUG);
     }
 

@@ -126,7 +126,7 @@ class mainloop {
             try {
 
                 $inline_keyboard = [
-                    ['text' => 'numero', 'callback_data' => 'getNumber']
+                    ['text' => 'numero 📞', 'callback_data' => 'getNumber']
                 ];
 
                 $this->create_inline_keyboard($telegram, "recupera", $inline_keyboard);
@@ -158,7 +158,11 @@ class mainloop {
         }
 //elseif (strpos($this->text, '/') === false) {
 // the following word after ? is the key for the search
-        elseif (preg_match('/^\?/', $this->text) || "Pizzerie" == $this->text) {
+        elseif (preg_match('/^\?/', $this->text) 
+		|| "Pizzerie" == $this->text 
+		|| "Collegamenti" == $this->text 
+		|| "Spedizioni" == $this->text 
+		|| "Parrucchieri" == $this->text) {
             $this->sendListResult($telegram);
         }
 // if "PAROLE CHIAVE" is provided, a list with all keys and number of are sent
@@ -278,7 +282,7 @@ class mainloop {
     }
 
     function create_keyboard_temp($telegram) {
-        $option = array(["KEYWORDS", "Pizzerie"], ["Help", "Posizione/Position"]);
+        $option = array(["Spedizioni", "Collegamenti"],["Parrucchieri", "Pizzerie"],["KEYWORDS", "Posizione/Position"]);
         $keyb = $telegram->buildKeyBoard($option, $onetime = false);
         $content = array(
             'chat_id' => $this->chat_id,
@@ -323,7 +327,7 @@ class mainloop {
         $inizio = 1;
         $res = "";
 
-        mylog("URL: " . $urlgd);
+        mylog("URL: " . $urlgd, LOGDEBUG);
         $json = file_get_contents($urlgd);
 
 
@@ -530,21 +534,25 @@ class mainloop {
         $elements = array();
         $count = 0;
         foreach ($myContent as $v) {
-            $location = $this->resolveAddress($telegram, $v['Address']);
-            $elements[$count]['distance'] = distance($this->collection->location['latitude'], $this->collection->location['longitude'], $location['latitude'], $location['longitude']);
-
+             if (isset($this->collection->location)) {
+                $location = $this->resolveAddress($telegram, $v['Address']);
+                $elements[$count]['distance'] = distance($this->collection->location['latitude'], $this->collection->location['longitude'], $location['latitude'], $location['longitude']);
+            } else {
+                $elements[$count]['distance'] = -1;
+            }
+            
             $result = "\n";
             $result .= "N°: /id_" . $v["ID"] . "\n";
             $result .= "<b>Last update:</b> " . convertGjsonDateToString($v['update']) . "\n";
             $result .= (isset($v['profession']) && $v['profession'] != "") ? "<b>Profession:</b> " . $v['profession'] . "\n" : "";
             $result .= (isset($v['Name']) && $v['Name'] != "") ? "<b>Name:</b> " . $v['Name'] . "\n" : "";
-            $result .= (isset($v['Email']) && $v['Email'] != "") ? "<b>Email:</b>  " . $v['Email'] . "\n" : "";
-            $result .= (isset($v['Phone']) && $v['Phone'] != "") ? "<b>Phone:</b> " . $v['Phone'] . "\n" : "";
-            $result .= (isset($v['Mobile1']) && $v['Mobile1'] != "") ? "<b>Mobile1:</b> " . $v['Mobile1'] . "\n" : "";
-            $result .= (isset($v['Mobile2']) && $v['Mobile2'] != "") ? "<b>Mobile2:</b> " . $v['Mobile2'] . "\n" : "";
+            $result .= (isset($v['Email']) && $v['Email'] != "") ? "&#128234;: " . $v['Email'] . "\n" : "";
+            $result .= (isset($v['Phone']) && $v['Phone'] != "") ? "&#128222;: " . $v['Phone'] . "\n" : "";
+            $result .= (isset($v['Mobile1']) && $v['Mobile1'] != "") ? "&#128244;: " . $v['Mobile1'] . "\n" : "";
+            $result .= (isset($v['Mobile2']) && $v['Mobile2'] != "") ? "&#128244;: " . $v['Mobile2'] . "\n" : "";
             $result .= (isset($v['Address']) && $v['Address'] != "") ? "<b>Address:</b> " . $v['Address'] . "\n" : "";
             $result .= (isset($v['Description']) && $v['Description'] != "") ? "<b>Description:</b> " . $v['Description'] . "\n" : "";
-            $result .= (isset($v['web']) && $v['web'] != "") ? "<b>URL:</b> " . $v['web'] . "\n" : "";
+            $result .= (isset($v['web']) && $v['web'] != "") ? "&#128187;: " . $v['web'] . "\n" : "";
             $result .= ($elements[$count]['distance'] != -1) ? "<b>Distance:</b> " . number_format($elements[$count]['distance'], 2, '.', '') . " km \n" : "";
             $result .= (isset($v['Address']) || (isset($v['lat']) && isset($v['lng']))) ? "<b>GetPosition:</b> /pos_" . $v['ID'] . "\n" : "";
             $result .= "_____________\n";
