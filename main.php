@@ -30,6 +30,8 @@ class mainloop {
     var $lastName;
     var $location;
     var $reply_to_msg;
+    var $call_back;
+    var $offset;
     // mongoDB collection
     var $collection;
     // mongoDB user
@@ -46,8 +48,25 @@ class mainloop {
 
         mylog("Update: " . print_r($update, TRUE), LOGDEBUG);
 
-        $this->text = (isset($update["message"]["text"]) ? $update["message"]["text"] : NULL);
-        $this->chat_id = $update["message"]["chat"]["id"];
+        $this->call_back = (isset($update["callback_query"]) ? $update["callback_query"] : NULL);
+        if ($this->call_back) {
+            $arr = split('#', $this->call_back["data"]);
+            $this->text = $arr[0];
+            $this->offset = $arr[1];
+            $update["message"]["from"] = $this->call_back["from"];
+            $this->chat_id = $this->call_back["message"]["chat"]["id"];
+//            $this->user_id = $this->call_back["from"]["id"];
+//            $this->username = $this->call_back["from"]["username"];
+//            $this->firstName = $this->call_back["from"]["first_name"];
+//            $this->lastName = $this->call_back["from"]["last_name"];
+//            $this->location = (isset($update["message"]["location"]) ? $update["message"]["location"] : NULL);
+//            $this->reply_to_msg = (isset($update["message"]["reply_to_message"]) ? $update["message"]["reply_to_message"] : NULL);
+        } else {
+            $this->text = (isset($update["message"]["text"]) ? $update["message"]["text"] : NULL);
+            $this->chat_id = $update["message"]["chat"]["id"];
+            $this->offset = 0;
+        }
+
         $this->user_id = $update["message"]["from"]["id"];
         $this->username = $update["message"]["from"]["username"];
         $this->firstName = $update["message"]["from"]["first_name"];
@@ -114,7 +133,8 @@ class mainloop {
             // mylog("Found User: " . print_r($this->collection, TRUE));
             $this->location = $this->collection->user->location;
 
-            $this->sendListResult($telegram);
+//            $this->sendListResult($telegram);
+            $this->sendPagination($telegram, $this->offset);
             $this->create_keyboard_temp($telegram);
         } elseif ($this->text == "online") {
             $lat = 41.86265535999481;
@@ -126,7 +146,7 @@ class mainloop {
             try {
 
                 $inline_keyboard = [
-                    ['text' => 'numero 📞', 'callback_data' => 'getNumber']
+                        ['text' => 'numero 📞', 'callback_data' => 'getNumber']
                 ];
 
                 $this->create_inline_keyboard($telegram, "recupera", $inline_keyboard);
@@ -140,13 +160,12 @@ class mainloop {
 //first message
         elseif ($this->text == "/start" || $this->text == "Informazioni") {
             $this->sendInformazioni($telegram);
+        } elseif ($this->call_back != null || $this->text == "pagination") {
+            $this->sendPagination($telegram, $this->offset);
         }
 // send the help message
         elseif ($this->text == "/help" || $this->text == "Help") {
             $this->sendHelp($telegram);
-        } elseif ($this->location != null) {
-//	$this->location_manager($telegram,$user_id,$chat_id,$location);
-//	return;
         }
 // get all the information about the element by ID
         elseif (preg_match('/^\/i /', $this->text)) {
@@ -158,12 +177,9 @@ class mainloop {
         }
 //elseif (strpos($this->text, '/') === false) {
 // the following word after ? is the key for the search
-        elseif (preg_match('/^\?/', $this->text) 
-		|| "Pizzerie" == $this->text 
-		|| "Collegamenti" == $this->text 
-		|| "Spedizioni" == $this->text 
-		|| "Parrucchieri" == $this->text) {
-            $this->sendListResult($telegram);
+        elseif (preg_match('/^\?/', $this->text) || "Pizzerie" == $this->text || "Collegamenti" == $this->text || "Spedizioni" == $this->text || "Parrucchieri" == $this->text) {
+//            $this->sendListResult($telegram);
+            $this->sendPagination($telegram, $this->offset);
         }
 // if "PAROLE CHIAVE" is provided, a list with all keys and number of are sent
         else if ($this->text == '/l' || $this->text == 'KEYWORDS') {
@@ -176,7 +192,8 @@ class mainloop {
         }
 // Otherwise ask to resend the command/search
         else {
-            $this->notUnderstand($telegram);
+            $this->sendPagination($telegram, $this->offset);
+//            $this->notUnderstand($telegram);
         }
 
         /*
@@ -282,7 +299,7 @@ class mainloop {
     }
 
     function create_keyboard_temp($telegram) {
-        $option = array(["Spedizioni", "Collegamenti"],["Parrucchieri", "Pizzerie"],["KEYWORDS", "Posizione/Position"]);
+        $option = array(["Spedizioni", "Collegamenti"], ["Parrucchieri", "Pizzerie"], ["KEYWORDS", "Posizione/Position"], ["Help"]);
         $keyb = $telegram->buildKeyBoard($option, $onetime = false);
         $content = array(
             'chat_id' => $this->chat_id,
@@ -353,8 +370,8 @@ class mainloop {
         }
 
         $phoneN = ( isset($myContent[0]['Mobile1']) ? $myContent[0]['Mobile1'] :
-                        (isset($myContent[0]['Phone']) ? $myContent[0]['Phone'] :
-                                (isset($myContent[0]['Mobile2']) ? $myContent[0]['Mobile2'] : "")));
+                (isset($myContent[0]['Phone']) ? $myContent[0]['Phone'] :
+                (isset($myContent[0]['Mobile2']) ? $myContent[0]['Mobile2'] : "")));
 
         $chunks = str_split($res, self::MAX_LENGTH);
         foreach ($chunks as $chunk) {
@@ -401,66 +418,23 @@ class mainloop {
         return;
     }
 
-    function countElements($telegram, $query) {
-
-        $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20A%20IS%20NOT%20NULL";
-        $urlgd .= rawurlencode($query);
-        $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
-
-
-        $inizio = 1;
-        $res = "";
-//$comune="Lecce";
-//echo $urlgd;
-        $json = file_get_contents($urlgd);
-// mylog(print_r($json, TRUE));
-
-        try {
-            $myContent = parseGjson($json);
-//  mylog(print_r($myContent, TRUE));
-        } catch (Exception $e) {
-            echo 'Caught exception: ', $e->getMessage(), "\n";
-            $this->reply($telegram, 'Nessun elemento trovato');
-            return;
-        }
-
-        $count = count($myContent);
-
-        if ($count == 0) {
-            $this->reply($telegram, 'Nessun elemento trovato');
-        }
-
-        $tot;
-        foreach ($myContent as $value) {
-            $tot = $value["count"];
-        }
-
-        return $tot;
-    }
-
     function sendListKey($telegram) {
 
         $this->reply($telegram, "Sto interrogando il database:\n");
 
-//        $query = "SELECT  count(*) WHERE " . ID . " IS NOT NULL group by " . Key . "  ORDER BY count(" . ID . ") DESC ";
-//        
-//        $this->countElements($telegram, $query);
         $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20A%20IS%20NOT%20NULL";
-        $urlgd .= rawurlencode("SELECT " . Key . ", count(" . ID . ") WHERE " . ID . " IS NOT NULL group by " . Key . "  ORDER BY count(" . ID . ") DESC LIMIT " . MAX . " ");
+        $urlgd .= rawurlencode("SELECT " . Key . ", count(" . ID . ") WHERE " . ID . " IS NOT NULL group by " . Key . "  ORDER BY count(" . ID . ") DESC ");
         $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
 
 
         mylog("URL: " . $urlgd, LOGDEBUG);
         $inizio = 1;
         $res = "";
-//$comune="Lecce";
-//echo $urlgd;
+
         $json = file_get_contents($urlgd);
-// mylog(print_r($json, TRUE));
 
         try {
             $myContent = parseGjson($json);
-//  mylog(print_r($myContent, TRUE));
         } catch (Exception $e) {
             echo 'Caught exception: ', $e->getMessage(), "\n";
             $this->reply($telegram, 'Nessun elemento trovato');
@@ -534,13 +508,13 @@ class mainloop {
         $elements = array();
         $count = 0;
         foreach ($myContent as $v) {
-             if (isset($this->collection->location)) {
+            if (isset($this->collection->location)) {
                 $location = $this->resolveAddress($telegram, $v['Address']);
                 $elements[$count]['distance'] = distance($this->collection->location['latitude'], $this->collection->location['longitude'], $location['latitude'], $location['longitude']);
             } else {
                 $elements[$count]['distance'] = -1;
             }
-            
+
             $result = "\n";
             $result .= "N°: /id_" . $v["ID"] . "\n";
             $result .= "<b>Last update:</b> " . convertGjsonDateToString($v['update']) . "\n";
@@ -580,6 +554,121 @@ class mainloop {
         }
     }
 
+    function sendPagination($telegram, $offset) {
+        // $text = "Pizzerie";
+        $text = (preg_match('/^\?/', $this->text) ) ? substr($this->text, 1) : $this->text;
+
+        $this->reply($telegram, "Sto cercando argomenti con parola chiave: " . $text);
+
+        $text = str_replace(" ", "%20", $text);
+        $text = strtoupper($text);
+        $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20upper(C)%20contains%20%27";
+        $urlgd .= rawurlencode("SELECT * WHERE ");
+        $urlgd .= rawurlencode(" upper(" . Key . ") contains '") . $text . rawurlencode("' ");
+        $urlgd .= rawurlencode(" OR upper(" . Name . ") contains '") . $text . rawurlencode("' ");
+        $urlgd .= rawurlencode(" OR upper(" . Email . ") contains '") . $text . rawurlencode("' ");
+        $urlgd .= rawurlencode(" OR upper(" . Description . ") contains '") . $text . rawurlencode("' ");
+        $urlgd .= rawurlencode(" OR upper(" . profession . ") contains '") . $text . rawurlencode("' ");
+        $urlgd .= rawurlencode(" LIMIT " . 5);
+        $urlgd .= rawurlencode(" OFFSET " . $offset);
+        $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
+        $homepage = "";
+
+        mylog("URL: " . $urlgd, LOGDEBUG);
+        $json = file_get_contents($urlgd);
+
+        try {
+            $myContent = parseGjson($json);
+//  mylog(print_r($myContent, TRUE));
+        } catch (Exception $e) {
+            echo 'Caught exception: ', $e->getMessage(), "\n";
+            $this->reply($telegram, 'Nessun elemento trovato');
+            return;
+        }
+
+        $count = count($myContent);
+
+        if ($count == 0) {
+            $this->reply($telegram, 'Nessun elemento trovato');
+
+            return;
+        }
+
+        $msg = (1 == $count ? "Recuperato 1 elemento" : "Recuperati " . $count . " elementi");
+        $this->reply($telegram, $msg);
+
+        $elements = array();
+        $count = 0;
+        foreach ($myContent as $v) {
+            if (isset($this->collection->location)) {
+                $location = $this->resolveAddress($telegram, $v['Address']);
+                $elements[$count]['distance'] = distance($this->collection->location['latitude'], $this->collection->location['longitude'], $location['latitude'], $location['longitude']);
+            } else {
+                $elements[$count]['distance'] = -1;
+            }
+
+            $result = "\n";
+            $result .= "N°: /id_" . $v["ID"] . "\n";
+            $result .= "<b>Last update:</b> " . convertGjsonDateToString($v['update']) . "\n";
+            $result .= (isset($v['profession']) && $v['profession'] != "") ? "<b>Profession:</b> " . $v['profession'] . "\n" : "";
+            $result .= (isset($v['Name']) && $v['Name'] != "") ? "<b>Name:</b> " . $v['Name'] . "\n" : "";
+            $result .= (isset($v['Email']) && $v['Email'] != "") ? "&#128234;: " . $v['Email'] . "\n" : "";
+            $result .= (isset($v['Phone']) && $v['Phone'] != "") ? "&#128222;: " . $v['Phone'] . "\n" : "";
+            $result .= (isset($v['Mobile1']) && $v['Mobile1'] != "") ? "&#128244;: " . $v['Mobile1'] . "\n" : "";
+            $result .= (isset($v['Mobile2']) && $v['Mobile2'] != "") ? "&#128244;: " . $v['Mobile2'] . "\n" : "";
+            $result .= (isset($v['Address']) && $v['Address'] != "") ? "<b>Address:</b> " . $v['Address'] . "\n" : "";
+            $result .= (isset($v['Description']) && $v['Description'] != "") ? "<b>Description:</b> " . $v['Description'] . "\n" : "";
+            $result .= (isset($v['web']) && $v['web'] != "") ? " &#128187;: " . $v['web'] . "\n" : "";
+            $result .= ($elements[$count]['distance'] != -1) ? "<b>Distance:</b> " . number_format($elements[$count]['distance'], 2, '.', '') . " km \n" : "";
+            $result .= (isset($v['Address']) || (isset($v['lat']) && isset($v['lng']))) ? "<b>GetPosition:</b> /pos_" . $v['ID'] . "\n" : "";
+            $result .= "_____________\n";
+
+            //$homepage .= $result;
+            $elements[$count]['object'] = $result;
+
+            // mylog($result);
+            $count++;
+        }
+
+        //  mylog($elements);
+        sort($elements);
+        //  mylog("AFTER SORT:" . print_r($elements, TRUE));
+
+        $allMessage = "";
+        for ($i = 0; $i < $count; $i++) {
+            $allMessage .= $elements[$i]['object'];
+        }
+
+        $chunks = str_split($allMessage, self::MAX_LENGTH);
+        foreach ($chunks as $chunk) {
+            mylog("Chunk: " . $chunk, LOGDEBUG);
+            $this->reply($telegram, $chunk);
+        }
+
+        mylog(" offset: $offset and count: $count ");
+
+        if (0 == $offset && $count === MAX) {
+            $inline_keyboard = [
+                    ['text' => 'next', 'callback_data' => $text . "#" . ($offset + 5)]
+            ];
+            mylog(" offset: $offset and count: $count ");
+            $this->create_inline_keyboard($telegram, "cerca ancora", $inline_keyboard);
+        } else if ($offset >= 5 && $count == MAX) {
+            $inline_keyboard = [
+                    ['text' => 'prev', 'callback_data' => $text . "#" . ($offset - 5)],
+                    ['text' => 'next', 'callback_data' => $text . "#" . ($offset + 5)]
+            ];
+            mylog(" offset: $offset and count: $count ");
+            $this->create_inline_keyboard($telegram, "cerca ancora", $inline_keyboard);
+        } else if ($offset >= 5 && $count < MAX) {
+            $inline_keyboard = [
+                    ['text' => 'prev', 'callback_data' => $text . "#" . ($offset - 5)]
+            ];
+            mylog(" offset: $offset and count: $count ");
+            $this->create_inline_keyboard($telegram, "torna indietro", $inline_keyboard);
+        }
+    }
+
     function sendInfoByID($telegram) {
         $text = substr($this->text, 3);
 
@@ -589,7 +678,7 @@ class mainloop {
         $text = strtoupper($text);
         $urlgd = "https://spreadsheets.google.com/tq?tqx=out:json&tq="; //SELECT%20%2A%20WHERE%20upper(C)%20contains%20%27";
         $urlgd .= rawurlencode("SELECT * WHERE " . ID . " = ");
-        $urlgd .= rawurlencode($text . " LIMIT " . MAX);
+        $urlgd .= rawurlencode($text);
 
         $urlgd .= "&key=" . GDRIVEKEY . "&gid=" . GDRIVEGID1;
 
@@ -766,7 +855,7 @@ class mainloop {
         //    $this->reply($telegram, "You are the user: " . print_r($this->collection->findOne(['tgUserId' => $this->user_id]), TRUE));
 //rispondo
         $response = $telegram->getData();
-            $bot_request_message_id = $response["message"]["message_id"];
+        $bot_request_message_id = $response["message"]["message_id"];
 
 //nascondo la tastiera e forzo l'utente a darmi una risposta
         $forcehide = $telegram->buildForceReply(true);

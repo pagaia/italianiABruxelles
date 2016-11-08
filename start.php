@@ -14,9 +14,22 @@ include('getUpdates.php');
 $bot_id = TELEGRAM_BOT;
 $bot = new Telegram($bot_id);
 
+function usage() {
+    printf("");
+    printf("Usage: \n");
+    printf("start.php [sethook] [cert] [removehook] [getupdates] \n");
+    printf("\tsethook: to configure the webhook\n");
+    printf("\tcert: to use a self-signed certificate\n");
+    printf("\tremovehook: To remove the webhook\n");
+    printf("\tgetupdates: To call the script with a crontab insted to use the webhook\n");
+    printf("\n");
+}
+
 //valuta se l'interfaccia è di tipo CLI per vedere il parametro e settare o rimuovere il webhook e poi esce (se lanciato da riga di comando) 
 if (php_sapi_name() == 'cli') {
-    if ($argv[1] == 'sethook' && $argv[2] == 'cert') {
+    if (count($argv) == 1) {
+        usage();
+    } else if ($argv[1] == 'sethook' && $argv[2] == 'cert') {
         print "Sto configurando il WEBHOOK con questi parametri:\n"
                 . "WEBHOOK: " . BOT_WEBHOOK . "\n"
                 . "CERTIFICATE: " . CERTIFICATE . "\n";
