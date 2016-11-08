@@ -51,7 +51,7 @@ class mainloop {
         $this->call_back = (isset($update["callback_query"]) ? $update["callback_query"] : NULL);
         if ($this->call_back) {
             $arr = split('#', $this->call_back["data"]);
-            $this->text = $arr[0];
+            $this->text = rawurldecode($arr[0]);
             $this->offset = $arr[1];
             $update["message"]["from"] = $this->call_back["from"];
             $this->chat_id = $this->call_back["message"]["chat"]["id"];
@@ -177,9 +177,18 @@ class mainloop {
         }
 //elseif (strpos($this->text, '/') === false) {
 // the following word after ? is the key for the search
-        elseif (preg_match('/^\?/', $this->text) || "Pizzerie" == $this->text || "Collegamenti" == $this->text || "Spedizioni" == $this->text || "Parrucchieri" == $this->text) {
+        elseif (preg_match('/^\?/', $this->text) || "Pizzerie" == $this->text || "Spedizioni" == $this->text || "Parrucchieri" == $this->text) {
 //            $this->sendListResult($telegram);
             $this->sendPagination($telegram, $this->offset);
+        }
+        elseif ( "Collegamenti" == $this->text) {
+//            $this->sendListResult($telegram);
+             $inline_keyboard = [
+                    ['text' => 'Zaventem', 'callback_data' => "Collegamenti Zaventem#0"],
+                    ['text' => 'Charleroi', 'callback_data' => "Collegamenti Charleroi#0"]
+            ];
+            $this->create_inline_keyboard($telegram, "Selezione l'aeroporto", $inline_keyboard);
+           // $this->sendPagination($telegram, $this->offset);
         }
 // if "PAROLE CHIAVE" is provided, a list with all keys and number of are sent
         else if ($this->text == '/l' || $this->text == 'KEYWORDS') {
